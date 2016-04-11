@@ -335,5 +335,25 @@ namespace Music
                 currentList.Pause();
             }
         }
+
+        private void NextButton_PointerEntered(object sender, PointerRoutedEventArgs e)
+        {
+            NextButton.Source = NextHoverImage.Source;
+        }
+
+        private void NextButton_PointerExited(object sender, PointerRoutedEventArgs e)
+        {
+            NextButton.Source = NextImage.Source;
+        }
+
+        private void PrevButton_PointerEntered(object sender, PointerRoutedEventArgs e)
+        {
+            PrevButton.Source = PrevHoverImage.Source;
+        }
+
+        private void PrevButton_PointerExited(object sender, PointerRoutedEventArgs e)
+        {
+            PrevButton.Source = PrevImage.Source;
+        }
     }
 }

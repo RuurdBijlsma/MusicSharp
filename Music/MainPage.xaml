@@ -24,10 +24,24 @@
         <StackPanel x:Name="Hidden" Visibility="Collapsed">
             <Image x:Name="PauseImage" Source="Assets/pause.png"></Image>
             <Image x:Name="PlayImage" Source="Assets/play.png"></Image>
+            <Image x:Name="PrevImage" Source="Assets/prev.png"></Image>
+            <Image x:Name="PrevHoverImage" Source="Assets/prevhover.png"></Image>
+            <Image x:Name="NextImage" Source="Assets/next.png"></Image>
+            <Image x:Name="NextHoverImage" Source="Assets/nexthover.png"></Image>
         </StackPanel>
 
         <StackPanel Height="70" VerticalAlignment="Bottom" Background="#FF1B5B91">
-            <Image x:Name="PlayButton" Source="Assets/play.png" Width="50" Height="50" HorizontalAlignment="Center" Margin="0,10,0,0" IsDoubleTapEnabled="False" Tapped="PlayButton_Tapped"></Image>
+            <Image x:Name="PrevButton" Source="Assets/prev.png" Width="50" Height="50" HorizontalAlignment="Center" Margin="0,10,150,0" IsDoubleTapEnabled="False" Tapped="PlayButton_Tapped" PointerEntered="PrevButton_PointerEntered" PointerExited="PrevButton_PointerExited"></Image>
+            <Image x:Name="PlayButton" Source="Assets/play.png" Width="50" Height="50" HorizontalAlignment="Center" Margin="0,10,0,0" IsDoubleTapEnabled="False" Tapped="PlayButton_Tapped" RenderTransformOrigin="0.5,0.5">
+                <Image.RenderTransform>
+                    <CompositeTransform TranslateY="-60"/>
+                </Image.RenderTransform>
+            </Image>
+            <Image x:Name="NextButton" Source="Assets/next.png" Width="50" Height="50" HorizontalAlignment="Center" Margin="150,10,0,0" IsDoubleTapEnabled="False" Tapped="PlayButton_Tapped" RenderTransformOrigin="0.5,0.5" PointerEntered="NextButton_PointerEntered" PointerExited="NextButton_PointerExited">
+                <Image.RenderTransform>
+                    <CompositeTransform TranslateY="-120"/>
+                </Image.RenderTransform>
+            </Image>
         </StackPanel>
 
         <MediaElement x:Name="mediaElement" 
