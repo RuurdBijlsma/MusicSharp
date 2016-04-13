@@ -40,6 +40,13 @@ namespace Music
                 return mediaElement;
             }
         }
+        public ListView songsList
+        {
+            get
+            {
+                return SongsList;
+            }
+        }
         public string titleBox
         {
             get
@@ -59,16 +66,16 @@ namespace Music
             switch (args.Button)
             {
                 case SystemMediaTransportControlsButton.Play:
-                    currentList.Play();
+                    manager.Play();
                     break;
                 case SystemMediaTransportControlsButton.Pause:
-                    currentList.Pause();
+                    manager.Pause();
                     break;
                 case SystemMediaTransportControlsButton.Next:
-                    currentList.Next();
+                    manager.Next();
                     break;
                 case SystemMediaTransportControlsButton.Previous:
-                    currentList.Previous();
+                    manager.Previous();
                     break;
                 default:
                     break;
@@ -76,8 +83,7 @@ namespace Music
         }
 
         public LocalStorage localStorage = new LocalStorage(false);
-        Playlist songs;
-        Playlist currentList;
+        MusicManager manager;
         private CoreDispatcher dispatcher = CoreWindow.GetForCurrentThread().Dispatcher;
 
         public SystemMediaTransportControls controls;
@@ -86,6 +92,7 @@ namespace Music
         public MainPage()
         {
             this.InitializeComponent();
+
             FontFamily ff = new FontFamily("Segoe");
             Windows.UI.Text.FontWeight fw = new Windows.UI.Text.FontWeight();
             fw.Weight = 100;
@@ -99,14 +106,18 @@ namespace Music
             SeekBar.AddHandler(PointerReleasedEvent,
             new PointerEventHandler(SeekBar_MouseUp), true);
 
+
             Window.Current.VisibilityChanged += async (ss, ee) =>
             {
                 await dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
                 {
                     if (mediaElement.CanSeek && mediaElement != null && mediaElement.Position.TotalSeconds != 0)
                     {
-                        currentList.StartTime = mediaElement.Position;
-                        localStorage["Playlist" + currentList.Name] = currentList.ToString();
+                        manager.StartTime = mediaElement.Position;
+                    }
+                    if (manager != null)
+                    {
+                        localStorage["Music"] = manager.ToString();
                     }
                     localStorage.Save();
                 });
@@ -130,7 +141,7 @@ namespace Music
 
         private void LoadedMedia(object sender, RoutedEventArgs e)
         {
-            currentList.Loaded();
+            manager.Loaded();
         }
 
         private async void Startup()
@@ -138,20 +149,20 @@ namespace Music
 
             await localStorage.Initialize();
 
-            if (localStorage["PlaylistAll"] == null)
+            if (localStorage["Music"] == null)
             {
                 //first startup, er staan nog geen liedjes in de file
-                localStorage["PlaylistAll"] = "";
-                songs = new Playlist("All", await AddDirectory(), this);
-                localStorage["PlaylistAll"] = songs.ToString();
+                StorageFolder folder = await AddFolder();
+                manager = new MusicManager(await GetSongsFromFolder(folder), this);
+                manager.MusicFolders.Add(folder.Path);
+                localStorage["Music"] = manager.ToString();
             }
             else
             {
-                songs = GetPlaylist("All");
+                manager = GetManager();
             }
-            currentList = songs;
 
-            foreach (Song song in songs.Songs)
+            foreach (Song song in manager.Playlists[manager.CurrentList].Songs)
             {
                 TextBlock tb = new TextBlock();
                 tb.Text = song.NiceTitle;
@@ -159,14 +170,18 @@ namespace Music
                 SongsList.Items.Add(tb);
             }
 
-            currentList.SetSongInfo();
+            manager.SetSongInfo();
         }
 
-        private Playlist GetPlaylist(string name)
+        private MusicManager GetManager()
         {
+            List<Playlist> playlists = new List<Playlist>();
             List<Song> songList = new List<Song>();
-            JToken playlistJson = JObject.Parse(localStorage["Playlist" + name]);
+            JToken playlistJson = JObject.Parse(localStorage["Music"]);
             int nowPlaying = (int)playlistJson["NowPlaying"];
+            int currentList = (int)playlistJson["CurrentList"];
+            string sort = (string)playlistJson["Sort"];
+            bool ascending = (bool)playlistJson["Ascending"];
 
             string time = (string)playlistJson["StartTime"];
             string[] hms = time.Split(':');
@@ -178,21 +193,28 @@ namespace Music
             double s;
             double.TryParse(hms[2], out s);
 
-            TimeSpan currentTime = new TimeSpan(0, h, m, (int)s, (int)((s % 1) * 1000));
-            JToken songsJson = playlistJson["Songs"];
-            foreach (JToken song in songsJson)
+            TimeSpan startTime = new TimeSpan(0, h, m, (int)s, (int)((s % 1) * 1000));
+            JToken playlistsJson = playlistJson["Playlists"];
+            foreach (JToken playlist in playlistsJson)
             {
-                string fullTitle = (string)song["FullTitle"];
-                string path = (string)song["Path"];
-                long dateAdded = (long)song["DateAdded"];
-                string niceTitle = (string)song["NiceTitle"];
-                int playCount = (int)song["PlayCount"];
-                songList.Add(new Song(fullTitle, path, dateAdded, playCount, niceTitle));
+                songList.Clear();
+                string name = (string)playlist["Name"];
+                JToken songsJson = playlistJson["Songs"];
+                foreach (JToken song in songsJson)
+                {
+                    string fullTitle = (string)song["FullTitle"];
+                    string path = (string)song["Path"];
+                    long dateAdded = (long)song["DateAdded"];
+                    string niceTitle = (string)song["NiceTitle"];
+                    int playCount = (int)song["PlayCount"];
+                    songList.Add(new Song(fullTitle, path, dateAdded, playCount, niceTitle));
+                }
+                playlists.Add(new Playlist(name, songList));
             }
-            return new Playlist("All", songList, this, nowPlaying, currentTime.Ticks);
+            return new MusicManager(songList, this, playlists, currentList, sort, ascending, nowPlaying, startTime.Ticks);
         }
 
-        private async Task<List<Song>> AddDirectory()
+        private async Task<StorageFolder> AddFolder()
         {
             Windows.Storage.Pickers.FolderPicker folderPicker = new Windows.Storage.Pickers.FolderPicker();
             folderPicker.SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.MusicLibrary;
@@ -206,14 +228,18 @@ namespace Music
                 Windows.Storage.AccessCache.StorageApplicationPermissions.
                 FutureAccessList.AddOrReplace("PickedFolderToken", folder);
 
-                localStorage["folders"] += "<:>" + folder.Path;
-                await exploreFolder(folder);
-                return foundSongs;
+                return folder;
             }
             else
             {
                 return null;
             }
+        }
+
+        private async Task<List<Song>> GetSongsFromFolder(StorageFolder folder)
+        {
+            await exploreFolder(folder);
+            return foundSongs;
         }
 
         List<Song> foundSongs = new List<Song>();
@@ -232,8 +258,9 @@ namespace Music
                     StorageFile song = (StorageFile)item;
                     if (song.FileType == ".mp3" || song.FileType == ".m4a")
                     {
-                        foundSongs.Add(new Song(item.Name, item.Path, item.DateCreated.ToUnixTimeMilliseconds()));
-                        if(foundSongs.GroupBy(Song => Song.NiceTitle).ToList().Count != foundSongs.Count)
+                        Windows.Storage.FileProperties.BasicProperties properties = await item.GetBasicPropertiesAsync();
+                        foundSongs.Add(new Song(item.Name, item.Path, properties.DateModified.ToUnixTimeMilliseconds()));
+                        if (foundSongs.GroupBy(Song => Song.NiceTitle).ToList().Count != foundSongs.Count)
                         {
                             //duplicate found
                             foundSongs.RemoveAt(foundSongs.Count - 1);
@@ -252,11 +279,11 @@ namespace Music
             }
             else
             {
-                currentList.StartTime = new TimeSpan(0);
+                manager.StartTime = new TimeSpan(0);
             }
 
             int index = SongsList.SelectedIndex;
-            currentList.Play(index);
+            manager.Play(index);
         }
 
         private void MediaElement_CurrentStateChanged(object sender, RoutedEventArgs e)
@@ -275,7 +302,7 @@ namespace Music
                     double duration = mediaElement.NaturalDuration.TimeSpan.TotalSeconds;
                     if (Math.Abs(position - duration) < 1)
                     {
-                        currentList.Next();
+                        manager.Next();
                     }
                     break;
                 case MediaElementState.Stopped:
@@ -310,6 +337,7 @@ namespace Music
             seekDown = false;
             TimeSpan newTime = new TimeSpan(0, 0, (int)SeekBar.Value / 10);
             mediaElement.Position = newTime;
+
         }
         private void SeekBar_MouseDown(object sender, PointerRoutedEventArgs e)
         {
@@ -328,11 +356,11 @@ namespace Music
         {
             if (mediaElement.CurrentState == MediaElementState.Paused)
             {
-                currentList.Play();
+                manager.Play();
             }
             else
             {
-                currentList.Pause();
+                manager.Pause();
             }
         }
 
@@ -354,6 +382,47 @@ namespace Music
         private void PrevButton_PointerExited(object sender, PointerRoutedEventArgs e)
         {
             PrevButton.Source = PrevImage.Source;
+        }
+
+        private void NextButton_Tapped(object sender, TappedRoutedEventArgs e)
+        {
+            manager.Next();
+        }
+
+        private void PrevButton_Tapped(object sender, TappedRoutedEventArgs e)
+        {
+            manager.Previous();
+        }
+
+        private void RepeatButton_PointerEntered(object sender, PointerRoutedEventArgs e)
+        {
+            RepeatButton.Source = RepeatHoverImage.Source;
+        }
+
+        private void RepeatButton_PointerExited(object sender, PointerRoutedEventArgs e)
+        {
+            RepeatButton.Source = RepeatImage.Source;
+        }
+
+        private void ShuffleButton_PointerEntered(object sender, PointerRoutedEventArgs e)
+        {
+            ShuffleButton.Source = ShuffleHoverImage.Source;
+        }
+
+        private void ShuffleButton_PointerExited(object sender, PointerRoutedEventArgs e)
+        {
+            ShuffleButton.Source = ShuffleImage.Source;
+        }
+
+        private void RepeatButton_Tapped(object sender, TappedRoutedEventArgs e)
+        {
+            manager.ToggleRepeat();
+        }
+
+
+        private void ShuffleButton_Tapped(object sender, TappedRoutedEventArgs e)
+        {
+            manager.ToggleShuffle();
         }
     }
 }

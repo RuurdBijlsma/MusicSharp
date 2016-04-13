@@ -28,18 +28,32 @@
             <Image x:Name="PrevHoverImage" Source="Assets/prevhover.png"></Image>
             <Image x:Name="NextImage" Source="Assets/next.png"></Image>
             <Image x:Name="NextHoverImage" Source="Assets/nexthover.png"></Image>
+            <Image x:Name="ShuffleImage" Source="Assets/shuffleon.png"></Image>
+            <Image x:Name="ShuffleHoverImage" Source="Assets/shuffleonhover.png"></Image>
+            <Image x:Name="RepeatImage" Source="Assets/repeaton.png"></Image>
+            <Image x:Name="RepeatHoverImage" Source="Assets/repeatonhover.png"></Image>
         </StackPanel>
 
-        <StackPanel Height="70" VerticalAlignment="Bottom" Background="#FF1B5B91">
-            <Image x:Name="PrevButton" Source="Assets/prev.png" Width="50" Height="50" HorizontalAlignment="Center" Margin="0,10,150,0" IsDoubleTapEnabled="False" Tapped="PlayButton_Tapped" PointerEntered="PrevButton_PointerEntered" PointerExited="PrevButton_PointerExited"></Image>
-            <Image x:Name="PlayButton" Source="Assets/play.png" Width="50" Height="50" HorizontalAlignment="Center" Margin="0,10,0,0" IsDoubleTapEnabled="False" Tapped="PlayButton_Tapped" RenderTransformOrigin="0.5,0.5">
+        <StackPanel Height="70" VerticalAlignment="Bottom" Background="#FF1B5B91" UseLayoutRounding="False">
+            <Image x:Name="RepeatButton" Source="Assets/repeaton.png" Width="50" Height="50" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,10,300,0" PointerEntered="RepeatButton_PointerEntered" PointerExited="RepeatButton_PointerExited" Tapped="RepeatButton_Tapped"></Image>
+            <Image x:Name="PrevButton" Source="Assets/prev.png" Width="50" Height="50" HorizontalAlignment="Center" Margin="0,10,150,0" IsDoubleTapEnabled="False" PointerEntered="PrevButton_PointerEntered" PointerExited="PrevButton_PointerExited" Tapped="PrevButton_Tapped" RenderTransformOrigin="0.5,0.5">
                 <Image.RenderTransform>
                     <CompositeTransform TranslateY="-60"/>
                 </Image.RenderTransform>
             </Image>
-            <Image x:Name="NextButton" Source="Assets/next.png" Width="50" Height="50" HorizontalAlignment="Center" Margin="150,10,0,0" IsDoubleTapEnabled="False" Tapped="PlayButton_Tapped" RenderTransformOrigin="0.5,0.5" PointerEntered="NextButton_PointerEntered" PointerExited="NextButton_PointerExited">
+            <Image x:Name="PlayButton" Source="Assets/play.png" Width="50" Height="50" HorizontalAlignment="Center" Margin="0,10,0,0" IsDoubleTapEnabled="False" Tapped="PlayButton_Tapped" RenderTransformOrigin="0.5,0.5">
                 <Image.RenderTransform>
                     <CompositeTransform TranslateY="-120"/>
+                </Image.RenderTransform>
+            </Image>
+            <Image x:Name="NextButton" Source="Assets/next.png" Width="50" Height="50" HorizontalAlignment="Center" Margin="150,10,0,0" IsDoubleTapEnabled="False" RenderTransformOrigin="0.5,0.5" PointerEntered="NextButton_PointerEntered" PointerExited="NextButton_PointerExited" Tapped="NextButton_Tapped">
+                <Image.RenderTransform>
+                    <CompositeTransform TranslateY="-180"/>
+                </Image.RenderTransform>
+            </Image>
+            <Image x:Name="ShuffleButton" Source="Assets/shuffleon.png" Width="50" Height="50" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="300,10,0,0" RenderTransformOrigin="0.5,0.5" PointerEntered="ShuffleButton_PointerEntered" PointerExited="ShuffleButton_PointerExited" Tapped="ShuffleButton_Tapped">
+                <Image.RenderTransform>
+                    <CompositeTransform TranslateY="-240"/>
                 </Image.RenderTransform>
             </Image>
         </StackPanel>

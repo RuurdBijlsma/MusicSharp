@@ -12,6 +12,7 @@ using System;
 using System.Threading.Tasks;
 using Windows.UI.Core;
 using System.Threading;
+using Windows.UI.Xaml.Controls;
 
 namespace Music
 {
@@ -19,14 +20,14 @@ namespace Music
     {
         public string FullTitle { get; }
         public string Path { get; }
-        public long DateAdded { get; }
+        public long DateModified { get; }
         public int PlayCount { get; set; }
 
-        public Song(string title, string path, long dateAdded, int playCount = 0, string niceTitle = null)
+        public Song(string title, string path, long dateModified, int playCount = 0, string niceTitle = null)
         {
             FullTitle = title;
             Path = path;
-            DateAdded = dateAdded;
+            DateModified = dateModified;
             PlayCount = playCount;
 
             NiceTitle = ParseTitle(title);
@@ -80,27 +81,77 @@ namespace Music
     {
         public string Name { get; set; }
         public List<Song> Songs { get; set; }
+
+        public Playlist(string name, List<Song> songs)
+        {
+            Name = name;
+            Songs = songs;
+        }
+
+
+        public void Add(Song song)
+        {
+            Songs.Add(song);
+        }
+
+        public override string ToString()
+        {
+            //string output = "{\n\t\"Name\":\"" + Name + "\",\n\t\"NowPlaying\":" + nowPlaying + ",\n\t\"Songs\":\n\t[\n";
+            //for (int i = 0; i < Songs.Count; i++)
+            //{
+            //    if (i != 0)
+            //        output += "\n,";
+            //    output += Songs[i].ToString();
+            //}
+            //output += "\n\t]\n}";
+
+            return JsonConvert.SerializeObject(this, Formatting.Indented);
+        }
+    }
+    public class MusicManager
+    {
         public int NowPlaying { get; set; }
+        public int CurrentList { get; set; }
+        public TimeSpan StartTime { get; set; }
+        public List<string> MusicFolders { get; set; }
+        public bool Repeat { get; set; }
+        public bool Shuffle { get; set; }
+        public string SortBy { get; set; }
+        public bool Ascending { get; set; }
+        public List<Playlist> Playlists { get; set; }
+
         private MainPage mainPage;
         private LocalStorage localStorage;
         private SystemMediaTransportControlsDisplayUpdater updater;
         private StorageFile audio;
         private CoreDispatcher dispatcher;
-        private Timer musicTick;
+        private Timer musicTimer;
         private bool thisSongPlayed = false;
-        private Windows.UI.Xaml.Controls.MediaElement media;
+        private MediaElement media;
         private bool firstLoad;
-        private Windows.UI.Xaml.Controls.Slider seekBar;
+        private Slider seekBar;
+        private ListView songsListView;
 
-        public TimeSpan StartTime { get; set; }
 
-        public Playlist(string name, List<Song> songs, MainPage mp, int songIndex = 0, long currentTime = 0)
+        public MusicManager(List<Song> allSongs, MainPage mp, List<Playlist> playlists = null, int currentList = 0, string sort = "date", bool ascending = false, int songIndex = 0, long startTime = 0)
         {
-            Name = name;
-            Songs = songs;
+            MusicFolders = new List<string>();
+            if (playlists == null)
+            {
+                allSongs = SortList(allSongs, "date", false);
+                Playlists = new List<Playlist>();
+                Playlists.Add(new Playlist("All", allSongs));
+            }
+            else
+            {
+                Playlists = playlists;
+            }
+            CurrentList = currentList;
             NowPlaying = songIndex;
-            StartTime = new TimeSpan(currentTime);
+            StartTime = new TimeSpan(startTime);
             firstLoad = true;
+            SortBy = sort;
+            Ascending = ascending;
 
             mainPage = mp;
             localStorage = mp.localStorage;
@@ -109,13 +160,14 @@ namespace Music
             dispatcher = CoreWindow.GetForCurrentThread().Dispatcher;
             media = mp.media;
             seekBar = mp.seekBar;
+            songsListView = mp.songsList;
 
-            MusicTimer();
+            StartTimer();
         }
-        
-        public void MusicTimer()
+
+        public void StartTimer()
         {
-            musicTick = new Timer(async (obj) =>
+            musicTimer = new Timer(async (obj) =>
             {
                 await dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
                 {
@@ -124,35 +176,32 @@ namespace Music
                         if (media.Position.TotalSeconds > media.NaturalDuration.TimeSpan.TotalSeconds / 2 && !thisSongPlayed)
                         {
                             thisSongPlayed = true;
-                            Songs[NowPlaying].PlayCount++;
+                            Playlists[CurrentList].Songs[NowPlaying].PlayCount++;
                         }
 
-                        localStorage["Playlist" + Name] = this.ToString();
                         if (!mainPage.seekDown)
                         {
                             seekBar.Value = media.Position.TotalSeconds * 10;
                         }
                     }
                 });
-            }, null, 1000, 500);
+            }, null, 500, 500);
         }
-
-        public void Add(Song song)
+        public void StopTimer()
         {
-            Songs.Add(song);
+            musicTimer.Dispose();
         }
 
         public void SetSongInfo()
         {
-            updater.MusicProperties.Title = Songs[NowPlaying].NiceTitle;
+            updater.MusicProperties.Title = Playlists[CurrentList].Songs[NowPlaying].NiceTitle;
             updater.Update();
             thisSongPlayed = false;
 
-            mainPage.titleBox = Songs[NowPlaying].NiceTitle;
+            mainPage.titleBox = Playlists[CurrentList].Songs[NowPlaying].NiceTitle;
 
             mainPage.listView.SelectedIndex = NowPlaying;
             mainPage.listView.ScrollIntoView(mainPage.listView.Items[NowPlaying], Windows.UI.Xaml.Controls.ScrollIntoViewAlignment.Leading);
-            localStorage["Playlist" + Name] = this.ToString();
         }
 
         public async void Loaded()//zodra liedje geladen is
@@ -170,12 +219,85 @@ namespace Music
             seekBar.Maximum = duration * 10;
         }
 
+        private List<Song> SortList(List<Song> list, string sortBy="date", bool ascending = true)
+        {
+            switch (sortBy)
+            {
+                case "title":
+                    list = list.OrderBy(Song => Song.NiceTitle).ToList();
+                    break;
+                case "date":
+                    list = list.OrderBy(Song => Song.DateModified).ToList();
+                    break;
+                case "playcount":
+                    list = list.OrderBy(Song => Song.PlayCount).ToList();
+                    break;
+                default:
+                    list = list.OrderBy(Song => Song.NiceTitle).ToList();
+                    break;
+            }
+            if (!ascending)
+            {
+                list.Reverse();
+            }
+            return list;
+        }
+        private void DisplayList(Playlist list)
+        {
+            if (songsListView.Items.Count == list.Songs.Count)
+            {
+                for (int i = 0; i < list.Songs.Count; i++)
+                {
+                    TextBlock tb = (TextBlock)songsListView.Items[i];
+                    tb.Text = list.Songs[i].NiceTitle;
+                }
+            }
+            else
+            {
+                songsListView.Items.Clear();
+                foreach (Song song in list.Songs)
+                {
+                    TextBlock tb = new TextBlock();
+                    tb.Text = song.NiceTitle;
+                    songsListView.Items.Add(tb);
+                }
+            }
+        }
+
+        public void ToggleShuffle()
+        {
+            Song currentSong = Playlists[CurrentList].Songs[NowPlaying];
+            if (Shuffle)
+            {
+                Shuffle = false;
+                Playlists[CurrentList].Songs=SortList(Playlists[CurrentList].Songs, SortBy, Ascending);
+            }
+            else
+            {
+                Shuffle = true;
+                Playlists[CurrentList].Songs.Shuffle();
+            }
+            int currentIndex = Playlists[CurrentList].Songs.FindSong(currentSong);
+            DisplayList(Playlists[CurrentList]);
+        }
+        public void ToggleRepeat()
+        {
+            if (Repeat)
+            {
+                Repeat = false;
+            }
+            else
+            {
+                Repeat = true;
+            }
+        }
+
         public async void Play(int index = -1)
         {
             if (index != -1)
             {
                 NowPlaying = index;
-                audio = await StorageFile.GetFileFromPathAsync(Songs[index].Path);
+                audio = await StorageFile.GetFileFromPathAsync(Playlists[CurrentList].Songs[index].Path);
 
                 await dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
                 {
@@ -210,7 +332,7 @@ namespace Music
         }
         public void Next()
         {
-            if (NowPlaying == Songs.Count - 1)
+            if (NowPlaying == Playlists[CurrentList].Songs.Count - 1)
             {
                 Play(0);
             }
@@ -224,26 +346,46 @@ namespace Music
         {
             if (NowPlaying == 0)
             {
-                Play(Songs.Count - 1);
+                Play(Playlists[CurrentList].Songs.Count - 1);
             }
             else
             {
                 Play(NowPlaying - 1);
             }
         }
-
         public override string ToString()
         {
-            //string output = "{\n\t\"Name\":\"" + Name + "\",\n\t\"NowPlaying\":" + nowPlaying + ",\n\t\"Songs\":\n\t[\n";
-            //for (int i = 0; i < Songs.Count; i++)
-            //{
-            //    if (i != 0)
-            //        output += "\n,";
-            //    output += Songs[i].ToString();
-            //}
-            //output += "\n\t]\n}";
-
             return JsonConvert.SerializeObject(this, Formatting.Indented);
+        }
+    }
+
+    static class extention
+    {
+        private static Random rng = new Random();
+
+        public static void Shuffle<T>(this IList<T> list)
+        {
+            int n = list.Count;
+            while (n > 1)
+            {
+                n--;
+                int k = rng.Next(n + 1);
+                T value = list[k];
+                list[k] = list[n];
+                list[n] = value;
+            }
+        }
+
+        public static int FindSong(this IList<Song> list, Song toFind)
+        {
+            for (int i = 0; i < list.Count; i++)
+            {
+                if (list[i] == toFind)
+                {
+                    return i;
+                }
+            }
+            return -1;
         }
     }
 }
