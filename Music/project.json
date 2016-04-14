@@ -1,5 +1,7 @@
 ﻿{
   "dependencies": {
+    "Google.Apis": "1.11.1",
+    "Google.Apis.Customsearch.v1": "1.12.0.333",
     "Microsoft.ApplicationInsights": "1.0.0",
     "Microsoft.ApplicationInsights.PersistenceChannel": "1.0.0",
     "Microsoft.ApplicationInsights.WindowsApps": "1.0.0",

@@ -118,6 +118,7 @@ namespace Music
         public bool Shuffle { get; set; }
         public string SortBy { get; set; }
         public bool Ascending { get; set; }
+        public int Volume { get; set; }
         public List<Playlist> Playlists { get; set; }
 
         private MainPage mainPage;
@@ -133,9 +134,9 @@ namespace Music
         private ListView songsListView;
 
 
-        public MusicManager(List<Song> allSongs, MainPage mp, List<Playlist> playlists = null, int currentList = 0, string sort = "date", bool ascending = false, int songIndex = 0, long startTime = 0)
+        public MusicManager(List<Song> allSongs, MainPage mp, List<string> musicFolders, List<Playlist> playlists = null, int currentList = 0, string sort = "date", bool ascending = false, int songIndex = 0, long startTime = 0, bool shuffle = false, bool repeat = true, int volume = 100)
         {
-            MusicFolders = new List<string>();
+            MusicFolders = musicFolders;
             if (playlists == null)
             {
                 allSongs = SortList(allSongs, "date", false);
@@ -162,6 +163,19 @@ namespace Music
             seekBar = mp.seekBar;
             songsListView = mp.songsList;
 
+            SetVolume(volume);
+
+            Repeat = repeat;
+            Shuffle = shuffle;
+            if (!Repeat)
+            {
+                mp.repeatButton.Opacity = 0.5;
+            }
+            if (Shuffle)
+            {
+                mp.shuffleButton.Opacity = 1;
+            }
+
             StartTimer();
         }
 
@@ -182,6 +196,7 @@ namespace Music
                         if (!mainPage.seekDown)
                         {
                             seekBar.Value = media.Position.TotalSeconds * 10;
+                            mainPage.timeTextBlock = TimeToString(media.Position) + "/" + TimeToString(media.NaturalDuration.TimeSpan);
                         }
                     }
                 });
@@ -190,6 +205,24 @@ namespace Music
         public void StopTimer()
         {
             musicTimer.Dispose();
+        }
+
+        public void SetVolume(int volume, bool changeVal = false)
+        {
+            if (volume > 100)
+            {
+                volume = 100;
+            }
+            else if (volume < 0)
+            {
+                volume = 0;
+            }
+            Volume = volume;
+            media.Volume = (double)volume / 100;
+            if (firstLoad||changeVal)
+            {
+                mainPage.volumeSlider.Value = volume;
+            }
         }
 
         public void SetSongInfo()
@@ -201,25 +234,10 @@ namespace Music
             mainPage.titleBox = Playlists[CurrentList].Songs[NowPlaying].NiceTitle;
 
             mainPage.listView.SelectedIndex = NowPlaying;
-            mainPage.listView.ScrollIntoView(mainPage.listView.Items[NowPlaying], Windows.UI.Xaml.Controls.ScrollIntoViewAlignment.Leading);
+            mainPage.listView.ScrollIntoView(mainPage.listView.Items[NowPlaying], ScrollIntoViewAlignment.Leading);
         }
 
-        public async void Loaded()//zodra liedje geladen is
-        {
-            if (firstLoad)
-            {
-                firstLoad = false;
-                await dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
-                {
-                    media.Position = StartTime;
-                    media.Pause();
-                });
-            }
-            double duration = media.NaturalDuration.TimeSpan.TotalSeconds;
-            seekBar.Maximum = duration * 10;
-        }
-
-        private List<Song> SortList(List<Song> list, string sortBy="date", bool ascending = true)
+        private List<Song> SortList(List<Song> list, string sortBy = "date", bool ascending = true)
         {
             switch (sortBy)
             {
@@ -270,11 +288,13 @@ namespace Music
             if (Shuffle)
             {
                 Shuffle = false;
-                Playlists[CurrentList].Songs=SortList(Playlists[CurrentList].Songs, SortBy, Ascending);
+                mainPage.shuffleButton.Opacity = 0.5;
+                Playlists[CurrentList].Songs = SortList(Playlists[CurrentList].Songs, SortBy, Ascending);
             }
             else
             {
                 Shuffle = true;
+                mainPage.shuffleButton.Opacity = 1;
                 Playlists[CurrentList].Songs.Shuffle();
             }
             int currentIndex = Playlists[CurrentList].Songs.FindSong(currentSong);
@@ -285,10 +305,48 @@ namespace Music
             if (Repeat)
             {
                 Repeat = false;
+                mainPage.repeatButton.Opacity = 0.5;
             }
             else
             {
                 Repeat = true;
+                mainPage.repeatButton.Opacity = 1;
+            }
+        }
+
+        public void Loaded()//zodra liedje geladen is
+        {
+            double duration = media.NaturalDuration.TimeSpan.TotalSeconds;
+            seekBar.Maximum = duration * 10;
+            if (!firstLoad)
+            {
+                media.Play();
+                mainPage.timeTextBlock = TimeToString(media.Position) + "/" + TimeToString(media.NaturalDuration.TimeSpan);
+            }
+            else
+            {
+                firstLoad = false;
+            }
+        }
+
+        public async Task LoadSong(int index)
+        {
+            NowPlaying = index;
+            audio = await StorageFile.GetFileFromPathAsync(Playlists[CurrentList].Songs[index].Path);
+
+            await dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
+            {
+                SetSongInfo();
+            });
+
+            if (audio != null)
+            {
+                await dispatcher.RunAsync(CoreDispatcherPriority.Normal, async () =>
+                {
+                    IRandomAccessStream stream = await audio.OpenAsync(FileAccessMode.Read);
+                    media.SetSource(stream, audio.ContentType);
+                    seekBar.Value = 0;
+                });
             }
         }
 
@@ -296,31 +354,12 @@ namespace Music
         {
             if (index != -1)
             {
-                NowPlaying = index;
-                audio = await StorageFile.GetFileFromPathAsync(Playlists[CurrentList].Songs[index].Path);
-
-                await dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
-                {
-                    SetSongInfo();
-                });
-
-                if (audio != null)
-                {
-                    await dispatcher.RunAsync(CoreDispatcherPriority.Normal, async () =>
-                    {
-                        IRandomAccessStream stream = await audio.OpenAsync(FileAccessMode.Read);
-                        media.SetSource(stream, audio.ContentType);
-                        media.Play();
-                    });
-                }
+                await LoadSong(index);
             }
-            else
+            await dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
             {
-                await dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
-                {
-                    mainPage.media.Play();
-                });
-            }
+                media.Play();
+            });
 
         }
         public async void Pause()
@@ -356,6 +395,18 @@ namespace Music
         public override string ToString()
         {
             return JsonConvert.SerializeObject(this, Formatting.Indented);
+        }
+
+        private string TimeToString(TimeSpan time)
+        {
+            if (time.TotalHours >= 1)
+            {
+                return time.Hours.ToString() + ":" + time.Minutes.ToString("D2") + ":" + time.Seconds.ToString("D2");
+            }
+            else
+            {
+                return time.Minutes.ToString() + ":" + time.Seconds.ToString("D2");
+            }
         }
     }
 
