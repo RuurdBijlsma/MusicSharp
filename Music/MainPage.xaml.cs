@@ -22,8 +22,11 @@ using System.Threading.Tasks;
 using System.Threading;
 using Windows.System;
 using Windows.UI.ViewManagement;
+using System.Net.Http;
+using System.Text;
 using Google.Apis.Customsearch;
-
+using System.Net;
+using Windows.UI.Xaml.Media.Imaging;
 
 // The Blank Page item template is documented at http://go.microsoft.com/fwlink/?LinkId=402352&clcid=0x409
 
@@ -109,6 +112,19 @@ namespace Music
 
         public SystemMediaTransportControls controls;
 
+        private class SearchObject
+        {
+            public string q { get; set; }
+            public string key { get; set; }
+            public string cx { get; set; }
+            public string searchType { get; set; }
+            public string imgSize { get; set; }
+            public int num { get; set; }
+            public override string ToString()
+            {
+                return JsonConvert.SerializeObject(this);
+            }
+        }
 
         public MainPage()
         {
@@ -123,13 +139,10 @@ namespace Music
             TimeTextBlock.FontFamily = ff;
             TimeTextBlock.FontWeight = fw;
 
-            Google.Apis.Customsearch.v1.CustomsearchService.Initializer init = new Google.Apis.Services.BaseClientService.Initializer();
-            init.ApiKey = "AIzaSyDrSn8h3ZnHe_zg-FkVGuHUBNYAhJ31Nqw";
 
-            Google.Apis.Customsearch.v1.CustomsearchService service = new Google.Apis.Customsearch.v1.CustomsearchService(init);
-            
+
             SeekBar.AddHandler(PointerPressedEvent,
-            new PointerEventHandler(SeekBar_MouseDown), true);
+                new PointerEventHandler(SeekBar_MouseDown), true);
 
             SeekBar.AddHandler(PointerReleasedEvent,
             new PointerEventHandler(SeekBar_MouseUp), true);
@@ -174,6 +187,37 @@ namespace Music
 
         private async void Startup()
         {
+
+            //string url = @"https://www.googleapis.com/customsearch/v1?key=AIzaSyDrSn8h3ZnHe_zg-FkVGuHUBNYAhJ31Nqw&cx=000001731481601506413:s6vjwyrugku&searchType=image&imgSize=large&num=1&q=" + searchTerm;
+
+            //HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
+            //HttpWebResponse response = (HttpWebResponse)await request.GetResponseAsync();
+
+            //string result;
+            //using (StreamReader sr = new StreamReader(response.GetResponseStream()))
+            //{
+            //    result = sr.ReadToEnd();
+            //}
+
+            string result = "{\n \"kind\": \"customsearch#search\",\n \"url\": {\n  \"type\": \"application/json\",\n  \"template\": \"https://www.googleapis.com/customsearch/v1?q={searchTerms}&num={count?}&start={startIndex?}&lr={language?}&safe={safe?}&cx={cx?}&cref={cref?}&sort={sort?}&filter={filter?}&gl={gl?}&cr={cr?}&googlehost={googleHost?}&c2coff={disableCnTwTranslation?}&hq={hq?}&hl={hl?}&siteSearch={siteSearch?}&siteSearchFilter={siteSearchFilter?}&exactTerms={exactTerms?}&excludeTerms={excludeTerms?}&linkSite={linkSite?}&orTerms={orTerms?}&relatedSite={relatedSite?}&dateRestrict={dateRestrict?}&lowRange={lowRange?}&highRange={highRange?}&searchType={searchType}&fileType={fileType?}&rights={rights?}&imgSize={imgSize?}&imgType={imgType?}&imgColorType={imgColorType?}&imgDominantColor={imgDominantColor?}&alt=json\"\n },\n \"queries\": {\n  \"nextPage\": [\n   {\n    \"title\": \"Google Custom Search - cat\",\n    \"totalResults\": \"2300000000\",\n    \"searchTerms\": \"cat\",\n    \"count\": 1,\n    \"startIndex\": 2,\n    \"inputEncoding\": \"utf8\",\n    \"outputEncoding\": \"utf8\",\n    \"safe\": \"off\",\n    \"cx\": \"000001731481601506413:s6vjwyrugku\",\n    \"searchType\": \"image\",\n    \"imgSize\": \"large\"\n   }\n  ],\n  \"request\": [\n   {\n    \"title\": \"Google Custom Search - cat\",\n    \"totalResults\": \"2300000000\",\n    \"searchTerms\": \"cat\",\n    \"count\": 1,\n    \"startIndex\": 1,\n    \"inputEncoding\": \"utf8\",\n    \"outputEncoding\": \"utf8\",\n    \"safe\": \"off\",\n    \"cx\": \"000001731481601506413:s6vjwyrugku\",\n    \"searchType\": \"image\",\n    \"imgSize\": \"large\"\n   }\n  ]\n },\n \"context\": {\n  \"title\": \"musictest\"\n },\n \"searchInformation\": {\n  \"searchTime\": 0.218049,\n  \"formattedSearchTime\": \"0.22\",\n  \"totalResults\": \"2300000000\",\n  \"formattedTotalResults\": \"2,300,000,000\"\n },\n \"items\": [\n  {\n   \"kind\": \"customsearch#result\",\n   \"title\": \"The Special Grooming Needs of a Senior Cat - Petfinder\",\n   \"htmlTitle\": \"The Special Grooming Needs of a Senior \\u003cb\\u003eCat\\u003c/b\\u003e - Petfinder\",\n   \"link\": \"https://www.petfinder.com/wp-content/uploads/2012/11/140272627-grooming-needs-senior-cat-632x475.jpg\",\n   \"displayLink\": \"www.petfinder.com\",\n   \"snippet\": \"Needs of a Senior Cat\",\n   \"htmlSnippet\": \"Needs of a Senior \\u003cb\\u003eCat\\u003c/b\\u003e\",\n   \"mime\": \"image/jpeg\",\n   \"image\": {\n    \"contextLink\": \"https://www.petfinder.com/cats/cat-grooming/grooming-needs-senior-cat/\",\n    \"height\": 475,\n    \"width\": 632,\n    \"byteSize\": 72413,\n    \"thumbnailLink\": \"https://encrypted-tbn2.gstatic.com/images?q=tbn:ANd9GcTshAJ7eAbNXVHGwLjzP_lpPRPUoD6zd--nVGL-uZWICu2hE_biLFG2M_I\",\n    \"thumbnailHeight\": 103,\n    \"thumbnailWidth\": 137\n   }\n  }\n ]\n}\n";
+
+            string image = (string)JObject.Parse(result)["items"][0]["link"];
+
+            string url = image;
+            
+
+
+            Stream originalStream = await new HttpClient().GetStreamAsync(image);
+            MemoryStream memStream = new MemoryStream();
+            await originalStream.CopyToAsync(memStream);
+            memStream.Position = 0;
+
+            BitmapImage bitmap = new BitmapImage();
+            
+            await bitmap.SetSourceAsync(memStream.AsRandomAccessStream());
+
+            AlbumImage.Source = bitmap;
+            
 
             await localStorage.Initialize();
 
