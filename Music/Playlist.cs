@@ -8,11 +8,15 @@ using Windows.Storage;
 using Windows.Storage.Streams;
 using Windows.Foundation;
 using System.IO;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Threading.Tasks;
 using Windows.UI.Core;
+using System.Net.Http;
 using System.Threading;
 using Windows.UI.Xaml.Controls;
+using System.Net;
+using Windows.UI.Xaml.Media.Imaging;
 
 namespace Music
 {
@@ -132,6 +136,7 @@ namespace Music
         private bool firstLoad;
         private Slider seekBar;
         private ListView songsListView;
+        private StorageFolder pictureFolder;
 
 
         public MusicManager(List<Song> allSongs, MainPage mp, List<string> musicFolders, List<Playlist> playlists = null, int currentList = 0, string sort = "date", bool ascending = false, int songIndex = 0, long startTime = 0, bool shuffle = false, bool repeat = true, int volume = 100)
@@ -177,6 +182,71 @@ namespace Music
             }
 
             StartTimer();
+            Initialize();
+        }
+
+        private async void Initialize()
+        {
+            StorageFolder localFolder = ApplicationData.Current.LocalFolder;
+
+            pictureFolder = (StorageFolder)await localFolder.TryGetItemAsync("Album Covers");
+            if (pictureFolder == null)
+            {
+                pictureFolder = await localFolder.CreateFolderAsync("Album Covers", CreationCollisionOption.ReplaceExisting);
+            }
+        }
+
+
+        public async void SetAlbumArt(string niceTitle)
+        {
+            StorageFile picture = (StorageFile)await pictureFolder.TryGetItemAsync(niceTitle + ".jpg");
+
+            BitmapImage bitmap = new BitmapImage();
+
+            if (picture != null)
+            {
+                using (IRandomAccessStreamWithContentType pictureStream = await picture.OpenReadAsync())
+                {
+                    bitmap.SetSource(pictureStream);
+                }
+
+            }
+            else
+            {
+                string url = @"https://www.googleapis.com/customsearch/v1?key=AIzaSyDrSn8h3ZnHe_zg-FkVGuHUBNYAhJ31Nqw&cx=000001731481601506413:s6vjwyrugku&fileType=jpg&searchType=image&imgSize=large&num=1&q=" + niceTitle;
+
+                HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
+                HttpWebResponse response = (HttpWebResponse)await request.GetResponseAsync();
+
+                string result;
+                using (StreamReader sr = new StreamReader(response.GetResponseStream()))
+                {
+                    result = sr.ReadToEnd();
+                }
+
+                string image = (string)JObject.Parse(result)["items"][0]["link"];
+
+                //todo close stream
+
+                using (Stream originalStream = await new HttpClient().GetStreamAsync(image))
+                {
+                    using (MemoryStream memStream = new MemoryStream())
+                    {
+                        await originalStream.CopyToAsync(memStream);
+                        memStream.Position = 0;
+
+                        await bitmap.SetSourceAsync(memStream.AsRandomAccessStream());
+
+                        StorageFile file = await pictureFolder.CreateFileAsync(niceTitle + ".jpg", CreationCollisionOption.ReplaceExisting);
+                        using (Stream fileStream = await file.OpenStreamForWriteAsync())
+                        {
+                            byte[] buffer = memStream.ToArray();
+                            await fileStream.WriteAsync(buffer, 0, buffer.Length);
+                        }
+                    }
+                }
+            }
+            mainPage.albumImage.Source = bitmap;
         }
 
         public void StartTimer()
@@ -219,7 +289,7 @@ namespace Music
             }
             Volume = volume;
             media.Volume = (double)volume / 100;
-            if (firstLoad||changeVal)
+            if (firstLoad || changeVal)
             {
                 mainPage.volumeSlider.Value = volume;
             }
@@ -230,6 +300,8 @@ namespace Music
             updater.MusicProperties.Title = Playlists[CurrentList].Songs[NowPlaying].NiceTitle;
             updater.Update();
             thisSongPlayed = false;
+
+            SetAlbumArt(Playlists[CurrentList].Songs[NowPlaying].NiceTitle);
 
             mainPage.titleBox = Playlists[CurrentList].Songs[NowPlaying].NiceTitle;
 
