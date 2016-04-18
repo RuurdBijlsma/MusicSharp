@@ -208,25 +208,32 @@ namespace Music
                 using (IRandomAccessStreamWithContentType pictureStream = await picture.OpenReadAsync())
                 {
                     bitmap.SetSource(pictureStream);
+                    pictureStream.Dispose();
                 }
 
             }
             else
             {
-                string url = @"https://www.googleapis.com/customsearch/v1?key=AIzaSyDrSn8h3ZnHe_zg-FkVGuHUBNYAhJ31Nqw&cx=000001731481601506413:s6vjwyrugku&fileType=jpg&searchType=image&imgSize=large&num=1&q=" + niceTitle;
-
-                HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
-                HttpWebResponse response = (HttpWebResponse)await request.GetResponseAsync();
-
-                string result;
-                using (StreamReader sr = new StreamReader(response.GetResponseStream()))
+                try
                 {
-                    result = sr.ReadToEnd();
+                    string url = @"https://www.googleapis.com/customsearch/v1?key=AIzaSyDrSn8h3ZnHe_zg-FkVGuHUBNYAhJ31Nqw&cx=000001731481601506413:s6vjwyrugku&fileType=jpg&searchType=image&imgSize=large&num=1&q=" + niceTitle;
+
+                    HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
+                    HttpWebResponse response = (HttpWebResponse)await request.GetResponseAsync();
+
+                    string result;
+                    using (StreamReader sr = new StreamReader(response.GetResponseStream()))
+                    {
+                        result = sr.ReadToEnd();
+                    }
+                }
+                catch (Exception)
+                {
+                    throw;
                 }
 
                 string image = (string)JObject.Parse(result)["items"][0]["link"];
-
-                //todo close stream
+                
 
                 using (Stream originalStream = await new HttpClient().GetStreamAsync(image))
                 {

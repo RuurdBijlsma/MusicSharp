@@ -11,14 +11,18 @@
     </Page.Resources>
 
     <Grid Background="#FF0F0F0F" RequestedTheme="Dark">
-        <StackPanel x:Name="BackgroundPanel" Background="#FF0A0A0A" DoubleTapped="BackgroundPanel_DoubleTapped" KeyDown="BackgroundPanel_KeyDown"></StackPanel>
+        <StackPanel x:Name="BackgroundPanel" Background="#FF0A0A0A" DoubleTapped="BackgroundPanel_DoubleTapped"/>
 
         <Slider x:Name="SeekBar" Height="40" Maximum="1000" Background="Transparent" VerticalAlignment="Bottom" Margin="0,0,0,50" Canvas.ZIndex="10" Foreground="White" LargeChange="50" TickPlacement="None" ThumbToolTipValueConverter="{StaticResource SliderValueConverter}" SmallChange="10" ValueChanged="SeekBar_ValueChanged" IsRightTapEnabled="False" IsDoubleTapEnabled="False" UseSystemFocusVisuals="False" IsTabStop="False"/>
 
 
 
         <StackPanel x:Name="SongInfo" Width="500" Height="200" HorizontalAlignment="Left" VerticalAlignment="Top" Background="Black">
-            <Image x:Name="AlbumImage" Height="500" Stretch="UniformToFill"/>
+            <Image x:Name="AlbumImage" Height="500" Stretch="UniformToFill" RenderTransformOrigin="0.5,0.5">
+                <Image.RenderTransform>
+                    <CompositeTransform TranslateY="-150"/>
+                </Image.RenderTransform>
+            </Image>
             <StackPanel Width="500" Height="200" RenderTransformOrigin="0.5,0.5">
                 <StackPanel.Background>
                     <LinearGradientBrush EndPoint="0.5,1" StartPoint="0.5,0">

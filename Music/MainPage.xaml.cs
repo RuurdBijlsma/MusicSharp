@@ -535,12 +535,9 @@ namespace Music
         {
             Windows.UI.Input.PointerPoint properties = e.GetCurrentPoint((Slider)sender);
             int delta = properties.Properties.MouseWheelDelta;
-            manager.SetVolume((int)(mediaElement.Volume * 100) + delta / 20, true);
+            manager.SetVolume((int)(mediaElement.Volume * 100) + delta / 40, true);
         }
-
-        private void BackgroundPanel_KeyDown(object sender, KeyRoutedEventArgs e)
-        {
-        }
+        
 
         private void Page_KeyDown(object sender, KeyRoutedEventArgs e)
         {
@@ -563,10 +560,10 @@ namespace Music
                     manager.Previous();
                     break;
                 case VirtualKey.Up:
-                    manager.SetVolume((int)(mediaElement.Volume * 100) + 5, true);
+                    manager.SetVolume((int)(mediaElement.Volume * 100) + 15, true);
                     break;
                 case VirtualKey.Down:
-                    manager.SetVolume((int)(mediaElement.Volume * 100) - 5, true);
+                    manager.SetVolume((int)(mediaElement.Volume * 100) - 15, true);
                     break;
                 case VirtualKey.Insert:
                     ToggleControls();
