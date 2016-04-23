@@ -40,7 +40,19 @@
                 </TextBlock.RenderTransform>
             </TextBlock>
         </StackPanel>
-        <ListView x:Name="SongsList" Margin="0,200,0,70" Width="500" HorizontalAlignment="Left" Background="#FF1D98FF" SelectionChanged="SongsList_SelectionChanged" IsTextScaleFactorEnabled="False" FontSize="48">
+
+        <StackPanel VerticalAlignment="Top" HorizontalAlignment="Left" Width="500" Height="44" Margin="0,200,0,0" Background="#FF1B5B91">
+            <ComboBox x:Name="SortSelect" Margin="5,5,0,0" Background="#66000000" FontSize="16" Foreground="White" SelectedIndex="0" RequestedTheme="Dark" SelectionChanged="SortSelect_SelectionChanged" BorderBrush="#66000000" PlaceholderText="Sort songs">
+                <ComboBoxItem>Sort by: Date (new to old)</ComboBoxItem>
+                <ComboBoxItem>Sort by: Date (old to new)</ComboBoxItem>
+                <ComboBoxItem>Sort by: Title (A to Z)</ComboBoxItem>
+                <ComboBoxItem>Sort by: Title (Z to A)</ComboBoxItem>
+                <ComboBoxItem>Sort by: Most played</ComboBoxItem>
+                <ComboBoxItem>Sort by: Least played</ComboBoxItem>
+            </ComboBox>
+        </StackPanel>
+        
+        <ListView x:Name="SongsList" Margin="0,244,0,70" Width="500" HorizontalAlignment="Left" Background="#FF1D98FF" SelectionChanged="SongsList_SelectionChanged" IsTextScaleFactorEnabled="False" FontSize="48">
         </ListView>
 
         <StackPanel x:Name="Hidden" Visibility="Collapsed">

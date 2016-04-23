@@ -117,7 +117,7 @@ namespace Music
 
         public SystemMediaTransportControls controls;
 
-        
+
 
         public MainPage()
         {
@@ -196,8 +196,9 @@ namespace Music
             else
             {
                 manager = GetManager();
+                UpdateSongs();
             }
-           
+
 
             foreach (Song song in manager.Playlists[manager.CurrentList].Songs)
             {
@@ -208,6 +209,39 @@ namespace Music
             }
 
             manager.SetSongInfo();
+        }
+
+        private async void UpdateSongs()
+        {
+            IEnumerable<string> toSearch = manager.MusicFolders.Distinct();
+            List<Song> newSongs = new List<Song>();
+            foreach (string directory in toSearch)
+            {
+                newSongs.AddRange(await GetSongsFromFolder(await StorageFolder.GetFolderFromPathAsync(directory)));
+            }
+            newSongs = newSongs.Distinct().OrderBy(Song => Song.NiceTitle).ToList();
+            List<Song> oldSongs = manager.Playlists[0].Songs;
+            Comparer<Song> comp = Comparer<Song>.Create(MusicManager.CompareByTitle);
+
+            List<int> toRemove = new List<int>();
+            for (int i = oldSongs.Count - 1; i >= 0; i--)
+            {
+                int zelfdeSong = newSongs.BinarySearch(oldSongs[i], comp);
+                if (zelfdeSong != -1)
+                {
+                    toRemove.Add(zelfdeSong);
+                }
+            }
+            toRemove.Sort();
+            toRemove.Reverse();
+            for (int i = 0; i < toRemove.Count; i++)
+            {
+                newSongs.RemoveAt(toRemove[i]);
+            }
+            if (newSongs.Count > 0)
+            {
+                manager.AddSongs(newSongs);
+            }
         }
 
         private MusicManager GetManager()
@@ -340,18 +374,26 @@ namespace Music
         }
 
         bool firstLoad = true;
+        public bool dontUpdate = false;
         private void SongsList_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            int index = SongsList.SelectedIndex;
-            if (firstLoad)
+            if (!dontUpdate)
             {
-                firstLoad = false;
-                manager.LoadSong(index);
+                int index = SongsList.SelectedIndex;
+                if (firstLoad)
+                {
+                    firstLoad = false;
+                    manager.LoadSong(index);
+                }
+                else
+                {
+                    manager.StartTime = new TimeSpan(0);
+                    manager.Play(index);
+                }
             }
             else
             {
-                manager.StartTime = new TimeSpan(0);
-                manager.Play(index);
+                dontUpdate = false;
             }
         }
 
@@ -537,7 +579,7 @@ namespace Music
             int delta = properties.Properties.MouseWheelDelta;
             manager.SetVolume((int)(mediaElement.Volume * 100) + delta / 40, true);
         }
-        
+
 
         private void Page_KeyDown(object sender, KeyRoutedEventArgs e)
         {
@@ -570,6 +612,14 @@ namespace Music
                     break;
                 default:
                     break;
+            }
+        }
+
+        private void SortSelect_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (manager != null)
+            {
+                manager.SortSongs(SortSelect.SelectedIndex);
             }
         }
     }

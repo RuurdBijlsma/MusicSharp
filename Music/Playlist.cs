@@ -97,6 +97,10 @@ namespace Music
         {
             Songs.Add(song);
         }
+        public void AddRange(List<Song> songs)
+        {
+            Songs.AddRange(songs);
+        }
 
         public override string ToString()
         {
@@ -185,6 +189,14 @@ namespace Music
             Initialize();
         }
 
+        public void AddSongs(List<Song> songs)
+        {
+            Song currentSong = Playlists[CurrentList].Songs[NowPlaying];
+            Playlists[0].AddRange(songs);
+            Playlists[0].Songs = SortList(Playlists[0].Songs, SortBy, Ascending);
+            DisplayList(Playlists[CurrentList], Playlists[CurrentList].Songs.IndexOf(currentSong));
+        }
+
         private async void Initialize()
         {
             StorageFolder localFolder = ApplicationData.Current.LocalFolder;
@@ -214,7 +226,7 @@ namespace Music
             }
             else
             {
-                string result;
+                string result = "";
                 try
                 {
                     string url = @"https://www.googleapis.com/customsearch/v1?key=AIzaSyDrSn8h3ZnHe_zg-FkVGuHUBNYAhJ31Nqw&cx=000001731481601506413:s6vjwyrugku&fileType=jpg&searchType=image&imgSize=large&num=1&q=" + niceTitle;
@@ -226,31 +238,31 @@ namespace Music
                     {
                         result = sr.ReadToEnd();
                     }
+
+                    string image = (string)JObject.Parse(result)["items"][0]["link"];
+
+
+                    using (Stream originalStream = await new HttpClient().GetStreamAsync(image))
+                    {
+                        using (MemoryStream memStream = new MemoryStream())
+                        {
+                            await originalStream.CopyToAsync(memStream);
+                            memStream.Position = 0;
+
+                            await bitmap.SetSourceAsync(memStream.AsRandomAccessStream());
+
+                            StorageFile file = await pictureFolder.CreateFileAsync(niceTitle + ".jpg", CreationCollisionOption.ReplaceExisting);
+                            using (Stream fileStream = await file.OpenStreamForWriteAsync())
+                            {
+                                byte[] buffer = memStream.ToArray();
+                                await fileStream.WriteAsync(buffer, 0, buffer.Length);
+                            }
+                        }
+                    }
                 }
                 catch (Exception)
                 {
-                    throw;
-                }
-
-                string image = (string)JObject.Parse(result)["items"][0]["link"];
-                
-
-                using (Stream originalStream = await new HttpClient().GetStreamAsync(image))
-                {
-                    using (MemoryStream memStream = new MemoryStream())
-                    {
-                        await originalStream.CopyToAsync(memStream);
-                        memStream.Position = 0;
-
-                        await bitmap.SetSourceAsync(memStream.AsRandomAccessStream());
-
-                        StorageFile file = await pictureFolder.CreateFileAsync(niceTitle + ".jpg", CreationCollisionOption.ReplaceExisting);
-                        using (Stream fileStream = await file.OpenStreamForWriteAsync())
-                        {
-                            byte[] buffer = memStream.ToArray();
-                            await fileStream.WriteAsync(buffer, 0, buffer.Length);
-                        }
-                    }
+                    //internet is niet availai
                 }
             }
             mainPage.albumImage.Source = bitmap;
@@ -339,7 +351,7 @@ namespace Music
             }
             return list;
         }
-        private void DisplayList(Playlist list)
+        private void DisplayList(Playlist list, int selectedIndex)
         {
             if (songsListView.Items.Count == list.Songs.Count)
             {
@@ -356,9 +368,13 @@ namespace Music
                 {
                     TextBlock tb = new TextBlock();
                     tb.Text = song.NiceTitle;
+                    tb.FontSize = 18;
                     songsListView.Items.Add(tb);
                 }
             }
+            NowPlaying = selectedIndex;
+            mainPage.dontUpdate = true;
+            mainPage.listView.SelectedIndex = selectedIndex;
         }
 
         public void ToggleShuffle()
@@ -377,7 +393,8 @@ namespace Music
                 Playlists[CurrentList].Songs.Shuffle();
             }
             int currentIndex = Playlists[CurrentList].Songs.FindSong(currentSong);
-            DisplayList(Playlists[CurrentList]);
+            DisplayList(Playlists[CurrentList], currentIndex);
+            songsListView.ScrollIntoView(NowPlaying, ScrollIntoViewAlignment.Leading);
         }
         public void ToggleRepeat()
         {
@@ -391,6 +408,42 @@ namespace Music
                 Repeat = true;
                 mainPage.repeatButton.Opacity = 1;
             }
+        }
+
+        public void SortSongs(int index)
+        {
+            Song currentSong = Playlists[CurrentList].Songs[NowPlaying];
+            switch (index)
+            {
+                case 0:
+                    SortBy = "date";
+                    Ascending = false;
+                    break;
+                case 1:
+                    SortBy = "date";
+                    Ascending = true;
+                    break;
+                case 2:
+                    SortBy = "title";
+                    Ascending = true;
+                    break;
+                case 3:
+                    SortBy = "title";
+                    Ascending = false;
+                    break;
+                case 4:
+                    SortBy = "playcount";
+                    Ascending = false;
+                    break;
+                case 5:
+                    SortBy = "playcount";
+                    Ascending = true;
+                    break;
+            }
+            Shuffle = true;
+            ToggleShuffle();
+            DisplayList(Playlists[CurrentList], Playlists[CurrentList].Songs.IndexOf(currentSong));
+            mainPage.listView.ScrollIntoView(NowPlaying, ScrollIntoViewAlignment.Leading);
         }
 
         public void Loaded()//zodra liedje geladen is
@@ -487,6 +540,11 @@ namespace Music
                 return time.Minutes.ToString() + ":" + time.Seconds.ToString("D2");
             }
         }
+
+        public static int CompareByTitle(Song song1, Song song2)
+        {
+            return song1.NiceTitle.CompareTo(song2.NiceTitle);
+        }
     }
 
     static class extention
@@ -517,5 +575,6 @@ namespace Music
             }
             return -1;
         }
+        
     }
 }
