@@ -87,6 +87,16 @@ namespace Music
             get { return VolumeSlider; }
             set { VolumeSlider = value; }
         }
+        public TextBlock currentTime
+        {
+            get { return CurrentTime; }
+            set { CurrentTime = value; }
+        }
+        public TextBlock songInfoBlock
+        {
+            get { return SongInfoBlock; }
+            set { SongInfoBlock = value; }
+        }
         public Slider seekBar { get { return SeekBar; } }
         public ListView listView { get { return SongsList; } }
 
@@ -113,6 +123,7 @@ namespace Music
 
         public LocalStorage localStorage = new LocalStorage(false);
         MusicManager manager;
+        Clock clock;
         private CoreDispatcher dispatcher = CoreWindow.GetForCurrentThread().Dispatcher;
 
         public SystemMediaTransportControls controls;
@@ -132,6 +143,8 @@ namespace Music
             TimeTextBlock.FontFamily = ff;
             TimeTextBlock.FontWeight = fw;
 
+
+            clock = new Clock(CurrentTime);
 
 
             SeekBar.AddHandler(PointerPressedEvent,
@@ -221,13 +234,17 @@ namespace Music
             }
             newSongs = newSongs.Distinct().OrderBy(Song => Song.NiceTitle).ToList();
             List<Song> oldSongs = manager.Playlists[0].Songs;
+
+            SongEqualityComparer songEquals = new SongEqualityComparer();
+            List<Song> removeSongs = oldSongs.Except(newSongs, songEquals).ToList();
+
             Comparer<Song> comp = Comparer<Song>.Create(MusicManager.CompareByTitle);
 
             List<int> toRemove = new List<int>();
             for (int i = oldSongs.Count - 1; i >= 0; i--)
             {
                 int zelfdeSong = newSongs.BinarySearch(oldSongs[i], comp);
-                if (zelfdeSong != -1)
+                if (zelfdeSong >= 0)
                 {
                     toRemove.Add(zelfdeSong);
                 }
@@ -241,6 +258,10 @@ namespace Music
             if (newSongs.Count > 0)
             {
                 manager.AddSongs(newSongs);
+            }
+            if (removeSongs.Count > 0)
+            {
+                manager.RemoveSongs(removeSongs);
             }
         }
 
@@ -363,6 +384,8 @@ namespace Music
                 SongsList.Visibility = Visibility.Collapsed;
                 SeekBar.Visibility = Visibility.Collapsed;
                 SongInfo.Visibility = Visibility.Collapsed;
+                SortBar.Visibility = Visibility.Collapsed;
+                CurrentTime.Opacity = .5;
             }
             else
             {
@@ -370,6 +393,8 @@ namespace Music
                 SongsList.Visibility = Visibility.Visible;
                 SeekBar.Visibility = Visibility.Visible;
                 SongInfo.Visibility = Visibility.Visible;
+                SortBar.Visibility = Visibility.Visible;
+                CurrentTime.Opacity = .9;
             }
         }
 
@@ -570,6 +595,7 @@ namespace Music
             {
                 bool succeeded = view.TryEnterFullScreenMode();
             }
+            ToggleControls();
         }
 
 

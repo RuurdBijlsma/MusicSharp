@@ -11,6 +11,9 @@
     </Page.Resources>
 
     <Grid Background="#FF0F0F0F" RequestedTheme="Dark">
+        <TextBlock x:Name="CurrentTime" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="200" FontWeight="Thin" Foreground="White" Margin="0,0,0,50" Opacity="0.9" DoubleTapped="BackgroundPanel_DoubleTapped" Text="5" Canvas.ZIndex="1"/>
+        <TextBlock x:Name="SongInfoBlock" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,200,0,0" FontSize="26.667" Canvas.ZIndex="1" Opacity="0">Song name - artiest</TextBlock>
+        
         <StackPanel x:Name="BackgroundPanel" Background="#FF0A0A0A" DoubleTapped="BackgroundPanel_DoubleTapped"/>
 
         <Slider x:Name="SeekBar" Height="40" Maximum="1000" Background="Transparent" VerticalAlignment="Bottom" Margin="0,0,0,50" Canvas.ZIndex="10" Foreground="White" LargeChange="50" TickPlacement="None" ThumbToolTipValueConverter="{StaticResource SliderValueConverter}" SmallChange="10" ValueChanged="SeekBar_ValueChanged" IsRightTapEnabled="False" IsDoubleTapEnabled="False" UseSystemFocusVisuals="False" IsTabStop="False"/>
@@ -34,14 +37,14 @@
                     <CompositeTransform TranslateY="-500"/>
                 </StackPanel.RenderTransform>
             </StackPanel>
-            <TextBlock x:Name="titleTextBox" FontSize="46.667" Height="200" Width="500" TextWrapping="WrapWholeWords" TextTrimming="WordEllipsis" FontFamily="MS UI Gothic" Padding="15" Text="" RenderTransformOrigin="0.5,0.5" Foreground="White">
+            <TextBlock x:Name="titleTextBox" FontSize="46.667" Height="200" Width="500" TextWrapping="WrapWholeWords" TextTrimming="WordEllipsis" FontFamily="MS UI Gothic" Padding="15" Text="" RenderTransformOrigin="0.5,0.5" Foreground="White" Canvas.ZIndex="2">
                 <TextBlock.RenderTransform>
                     <CompositeTransform TranslateY="-700"/>
                 </TextBlock.RenderTransform>
             </TextBlock>
         </StackPanel>
 
-        <StackPanel VerticalAlignment="Top" HorizontalAlignment="Left" Width="500" Height="44" Margin="0,200,0,0" Background="#FF1B5B91">
+        <StackPanel x:Name="SortBar" VerticalAlignment="Top" HorizontalAlignment="Left" Width="500" Height="44" Margin="0,200,0,0" Background="#FF1B5B91" Canvas.ZIndex="2">
             <ComboBox x:Name="SortSelect" Margin="5,5,0,0" Background="#66000000" FontSize="16" Foreground="White" SelectedIndex="0" RequestedTheme="Dark" SelectionChanged="SortSelect_SelectionChanged" BorderBrush="#66000000" PlaceholderText="Sort songs">
                 <ComboBoxItem>Sort by: Date (new to old)</ComboBoxItem>
                 <ComboBoxItem>Sort by: Date (old to new)</ComboBoxItem>
@@ -52,7 +55,7 @@
             </ComboBox>
         </StackPanel>
         
-        <ListView x:Name="SongsList" Margin="0,244,0,70" Width="500" HorizontalAlignment="Left" Background="#FF1D98FF" SelectionChanged="SongsList_SelectionChanged" IsTextScaleFactorEnabled="False" FontSize="48">
+        <ListView x:Name="SongsList" Margin="0,244,0,70" Width="500" HorizontalAlignment="Left" Background="#FF1D98FF" SelectionChanged="SongsList_SelectionChanged" IsTextScaleFactorEnabled="False" FontSize="48" Canvas.ZIndex="2">
         </ListView>
 
         <StackPanel x:Name="Hidden" Visibility="Collapsed">
@@ -68,7 +71,7 @@
             <Image x:Name="RepeatHoverImage" Source="Assets/repeatonhover.png"></Image>
         </StackPanel>
 
-        <StackPanel x:Name="Controls" Height="70" VerticalAlignment="Bottom" Background="#FF1B5B91" UseLayoutRounding="False">
+        <StackPanel x:Name="Controls" Height="70" VerticalAlignment="Bottom" Background="#FF1B5B91" UseLayoutRounding="False" Canvas.ZIndex="2">
             <TextBlock x:Name="TimeTextBlock" Height="40" HorizontalAlignment="Left" FontSize="29.333" FontFamily="Segoe UI Light" Margin="10,20,0,0" FontWeight="Thin">2:30/5:12</TextBlock>
             <Image x:Name="RepeatButton" Source="Assets/repeaton.png" Width="50" Height="50" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,10,300,0" PointerEntered="RepeatButton_PointerEntered" PointerExited="RepeatButton_PointerExited" Tapped="RepeatButton_Tapped" RenderTransformOrigin="0.5,0.5">
                 <Image.RenderTransform>

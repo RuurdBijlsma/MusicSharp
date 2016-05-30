@@ -141,6 +141,7 @@ namespace Music
         private Slider seekBar;
         private ListView songsListView;
         private StorageFolder pictureFolder;
+        private Timer timeout;
 
 
         public MusicManager(List<Song> allSongs, MainPage mp, List<string> musicFolders, List<Playlist> playlists = null, int currentList = 0, string sort = "date", bool ascending = false, int songIndex = 0, long startTime = 0, bool shuffle = false, bool repeat = true, int volume = 100)
@@ -162,6 +163,8 @@ namespace Music
             firstLoad = true;
             SortBy = sort;
             Ascending = ascending;
+
+            timeout = null;
 
             mainPage = mp;
             localStorage = mp.localStorage;
@@ -193,7 +196,23 @@ namespace Music
         {
             Song currentSong = Playlists[CurrentList].Songs[NowPlaying];
             Playlists[0].AddRange(songs);
-            Playlists[0].Songs = SortList(Playlists[0].Songs, SortBy, Ascending);
+            if (!Shuffle)
+            {
+                Playlists[0].Songs = SortList(Playlists[0].Songs, SortBy, Ascending);
+            }
+            DisplayList(Playlists[CurrentList], Playlists[CurrentList].Songs.IndexOf(currentSong));
+        }
+        public void RemoveSongs(List<Song> songs)
+        {
+            Song currentSong = Playlists[CurrentList].Songs[NowPlaying];
+            foreach(Song song in songs)
+            {
+                Playlists[0].Songs.Remove(song);
+            }
+            if (!Shuffle)
+            {
+                Playlists[0].Songs = SortList(Playlists[0].Songs, SortBy, Ascending);
+            }
             DisplayList(Playlists[CurrentList], Playlists[CurrentList].Songs.IndexOf(currentSong));
         }
 
@@ -214,11 +233,12 @@ namespace Music
             StorageFile picture = (StorageFile)await pictureFolder.TryGetItemAsync(niceTitle + ".jpg");
 
             BitmapImage bitmap = new BitmapImage();
-
+            
             if (picture != null)
             {
                 using (IRandomAccessStreamWithContentType pictureStream = await picture.OpenReadAsync())
                 {
+                    updater.Thumbnail = RandomAccessStreamReference.CreateFromStream(pictureStream);
                     bitmap.SetSource(pictureStream);
                     pictureStream.Dispose();
                 }
@@ -250,10 +270,12 @@ namespace Music
                             memStream.Position = 0;
 
                             await bitmap.SetSourceAsync(memStream.AsRandomAccessStream());
+                            updater.Thumbnail = RandomAccessStreamReference.CreateFromStream(memStream.AsRandomAccessStream());
 
                             StorageFile file = await pictureFolder.CreateFileAsync(niceTitle + ".jpg", CreationCollisionOption.ReplaceExisting);
                             using (Stream fileStream = await file.OpenStreamForWriteAsync())
                             {
+                                
                                 byte[] buffer = memStream.ToArray();
                                 await fileStream.WriteAsync(buffer, 0, buffer.Length);
                             }
@@ -266,6 +288,7 @@ namespace Music
                 }
             }
             mainPage.albumImage.Source = bitmap;
+            updater.Update();
         }
 
         public void StartTimer()
@@ -326,6 +349,26 @@ namespace Music
 
             mainPage.listView.SelectedIndex = NowPlaying;
             mainPage.listView.ScrollIntoView(mainPage.listView.Items[NowPlaying], ScrollIntoViewAlignment.Leading);
+
+            mainPage.songInfoBlock.Text = Playlists[CurrentList].Songs[NowPlaying].NiceTitle;
+            if (mainPage.songsList.Visibility == Windows.UI.Xaml.Visibility.Collapsed)
+            {
+                //controls zijn verstopt
+                mainPage.songInfoBlock.Opacity = .9;
+                if(timeout!= null)
+                {
+                    timeout.Dispose();
+                    timeout = null;
+                }
+                timeout = new Timer(async (a) =>
+                {
+                    await dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
+                    {
+                        mainPage.songInfoBlock.Opacity = 0;
+                        timeout.Dispose();
+                    });
+                }, null, 2000, 1000);
+            }
         }
 
         private List<Song> SortList(List<Song> list, string sortBy = "date", bool ascending = true)
@@ -576,5 +619,23 @@ namespace Music
             return -1;
         }
         
+    }
+
+    class SongEqualityComparer : IEqualityComparer<Song>
+    {
+        public bool Equals(Song s1, Song s2)
+        {
+            if (s1 == null && s2 == null)
+                return true;
+            else if (s1 == null | s2 == null)
+                return false;
+            else
+                return s1.NiceTitle == s2.NiceTitle;
+        }
+
+        public int GetHashCode(Song sx)
+        {
+            return sx.NiceTitle.GetHashCode();
+        }
     }
 }
