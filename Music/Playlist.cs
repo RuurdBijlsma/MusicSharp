@@ -1,33 +1,27 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Net;
+using System.Net.Http;
 using System.Text.RegularExpressions;
-using Newtonsoft.Json;
+using System.Threading;
+using System.Threading.Tasks;
 using Windows.Media;
-using Windows.UI.Xaml.Media;
 using Windows.Storage;
 using Windows.Storage.Streams;
-using Windows.Foundation;
-using System.IO;
-using Newtonsoft.Json.Linq;
-using System;
-using System.Threading.Tasks;
 using Windows.UI.Core;
-using System.Net.Http;
-using System.Threading;
+using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
-using System.Net;
 using Windows.UI.Xaml.Media.Imaging;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace Music
 {
     public class Song
     {
-        public string FullTitle { get; }
-        public string Path { get; }
-        public long DateModified { get; }
-        public int PlayCount { get; set; }
-
-        public Song(string title, string path, long dateModified, int playCount = 0, string niceTitle = null)
+        public Song(string title, string path, long dateModified, int playCount = 0)
         {
             FullTitle = title;
             Path = path;
@@ -37,66 +31,66 @@ namespace Music
             NiceTitle = ParseTitle(title);
         }
 
-        private string ParseTitle(string title)
+        public string FullTitle { get; }
+        public string Path { get; }
+        public long DateModified { get; }
+        public int PlayCount { get; set; }
+
+        public string NiceTitle { get; }
+
+        private static string ParseTitle(string title)
         {
-            string newTitle = title.Substring(0, title.Length - title.Split('.').Last<string>().Length - 1);//.mp3 etc er af gehaald
+            var newTitle = title.Substring(0, title.Length - title.Split('.').Last().Length - 1);
+            //.mp3 etc er af gehaald
 
             newTitle = new Regex(@"\[([^]]+)\]").Replace(newTitle, "");
             newTitle = new Regex(@"\(([^]]+)\)").Replace(newTitle, "");
             newTitle = new Regex(@"\{([^]]+)\}").Replace(newTitle, "");
 
             if (newTitle.Replace(" ", "").Length == 0)
-            {
-                newTitle = title.Substring(0, title.Length - title.Split('.').Last<string>().Length - 1);
-            }
+                newTitle = title.Substring(0, title.Length - title.Split('.').Last().Length - 1);
 
             newTitle = newTitle.Replace("_", " ");
             newTitle = newTitle.Replace("  ", " ");
             newTitle = newTitle.Replace("  ", " ");
 
             double n;
-            string first = newTitle.Split(' ')[0];
+            var first = newTitle.Split(' ')[0];
             if (double.TryParse(first, out n))
-            {
                 newTitle = newTitle.Substring(first.Length, newTitle.Length - first.Length);
-            }
 
             while (newTitle[0] == ' ' || newTitle[0] == '-')
-            {
                 newTitle = newTitle.Substring(1);
-            }
 
             while (newTitle[newTitle.Length - 1] == ' ')
-            {
                 newTitle = newTitle.Substring(0, newTitle.Length - 1);
-            }
 
             return newTitle;
         }
-
-        public string NiceTitle { get; }
 
         public override string ToString()
         {
             return JsonConvert.SerializeObject(this, Formatting.Indented);
         }
     }
+
     public class Playlist
     {
-        public string Name { get; set; }
-        public List<Song> Songs { get; set; }
-
         public Playlist(string name, List<Song> songs)
         {
             Name = name;
             Songs = songs;
         }
 
+        public string Name { get; set; }
+        public List<Song> Songs { get; set; }
+
 
         public void Add(Song song)
         {
             Songs.Add(song);
         }
+
         public void AddRange(List<Song> songs)
         {
             Songs.AddRange(songs);
@@ -116,42 +110,33 @@ namespace Music
             return JsonConvert.SerializeObject(this, Formatting.Indented);
         }
     }
+
     public class MusicManager
     {
-        public int NowPlaying { get; set; }
-        public int CurrentList { get; set; }
-        public TimeSpan StartTime { get; set; }
-        public List<string> MusicFolders { get; set; }
-        public bool Repeat { get; set; }
-        public bool Shuffle { get; set; }
-        public string SortBy { get; set; }
-        public bool Ascending { get; set; }
-        public int Volume { get; set; }
-        public List<Playlist> Playlists { get; set; }
+        private readonly CoreDispatcher dispatcher;
 
-        private MainPage mainPage;
-        private LocalStorage localStorage;
-        private SystemMediaTransportControlsDisplayUpdater updater;
+        private readonly MainPage mainPage;
+        private readonly MediaElement media;
+        private readonly Slider seekBar;
+        private readonly ListView songsListView;
+        private readonly SystemMediaTransportControlsDisplayUpdater updater;
         private StorageFile audio;
-        private CoreDispatcher dispatcher;
-        private Timer musicTimer;
-        private bool thisSongPlayed = false;
-        private MediaElement media;
         private bool firstLoad;
-        private Slider seekBar;
-        private ListView songsListView;
+        private Timer musicTimer;
         private StorageFolder pictureFolder;
+        private bool thisSongPlayed;
         private Timer timeout;
 
 
-        public MusicManager(List<Song> allSongs, MainPage mp, List<string> musicFolders, List<Playlist> playlists = null, int currentList = 0, string sort = "date", bool ascending = false, int songIndex = 0, long startTime = 0, bool shuffle = false, bool repeat = true, int volume = 100)
+        public MusicManager(List<Song> allSongs, MainPage mp, List<string> musicFolders, List<Playlist> playlists = null,
+            int currentList = 0, string sort = "date", bool ascending = false, int songIndex = 0, long startTime = 0,
+            bool shuffle = false, bool repeat = true, int volume = 100)
         {
             MusicFolders = musicFolders;
             if (playlists == null)
             {
                 allSongs = SortList(allSongs, "date", false);
-                Playlists = new List<Playlist>();
-                Playlists.Add(new Playlist("All", allSongs));
+                Playlists = new List<Playlist> {new Playlist("All", allSongs)};
             }
             else
             {
@@ -167,11 +152,10 @@ namespace Music
             timeout = null;
 
             mainPage = mp;
-            localStorage = mp.localStorage;
             updater = mp.controls.DisplayUpdater;
             updater.Type = MediaPlaybackType.Music;
             dispatcher = CoreWindow.GetForCurrentThread().Dispatcher;
-            media = mp.media;
+            media = mp.Media;
             seekBar = mp.seekBar;
             songsListView = mp.songsList;
 
@@ -180,103 +164,102 @@ namespace Music
             Repeat = repeat;
             Shuffle = shuffle;
             if (!Repeat)
-            {
                 mp.repeatButton.Opacity = 0.5;
-            }
             if (Shuffle)
-            {
                 mp.shuffleButton.Opacity = 1;
-            }
 
             StartTimer();
             Initialize();
         }
 
+        public int NowPlaying { get; set; }
+        public int CurrentList { get; set; }
+        public TimeSpan StartTime { get; set; }
+        public List<string> MusicFolders { get; set; }
+        public bool Repeat { get; set; }
+        public bool Shuffle { get; set; }
+        public string SortBy { get; set; }
+        public bool Ascending { get; set; }
+        public int Volume { get; set; }
+        public List<Playlist> Playlists { get; set; }
+
         public void AddSongs(List<Song> songs)
         {
-            Song currentSong = Playlists[CurrentList].Songs[NowPlaying];
+            var currentSong = Playlists[CurrentList].Songs[NowPlaying];
             Playlists[0].AddRange(songs);
             if (!Shuffle)
-            {
                 Playlists[0].Songs = SortList(Playlists[0].Songs, SortBy, Ascending);
-            }
             DisplayList(Playlists[CurrentList], Playlists[CurrentList].Songs.IndexOf(currentSong));
         }
+
         public void RemoveSongs(List<Song> songs)
         {
-            Song currentSong = Playlists[CurrentList].Songs[NowPlaying];
-            foreach(Song song in songs)
-            {
+            var currentSong = Playlists[CurrentList].Songs[NowPlaying];
+            foreach (var song in songs)
                 Playlists[0].Songs.Remove(song);
-            }
             if (!Shuffle)
-            {
                 Playlists[0].Songs = SortList(Playlists[0].Songs, SortBy, Ascending);
-            }
             DisplayList(Playlists[CurrentList], Playlists[CurrentList].Songs.IndexOf(currentSong));
         }
 
         private async void Initialize()
         {
-            StorageFolder localFolder = ApplicationData.Current.LocalFolder;
+            var localFolder = ApplicationData.Current.LocalFolder;
 
-            pictureFolder = (StorageFolder)await localFolder.TryGetItemAsync("Album Covers");
-            if (pictureFolder == null)
-            {
-                pictureFolder = await localFolder.CreateFolderAsync("Album Covers", CreationCollisionOption.ReplaceExisting);
-            }
+            pictureFolder = (StorageFolder) await localFolder.TryGetItemAsync("Album Covers") ??
+                            await localFolder.CreateFolderAsync("Album Covers",
+                                CreationCollisionOption.ReplaceExisting);
         }
 
 
         public async void SetAlbumArt(string niceTitle)
         {
-            StorageFile picture = (StorageFile)await pictureFolder.TryGetItemAsync(niceTitle + ".jpg");
+            var picture = (StorageFile) await pictureFolder.TryGetItemAsync(niceTitle + ".jpg");
 
-            BitmapImage bitmap = new BitmapImage();
-            
+            var bitmap = new BitmapImage();
+
             if (picture != null)
-            {
-                using (IRandomAccessStreamWithContentType pictureStream = await picture.OpenReadAsync())
+                using (var pictureStream = await picture.OpenReadAsync())
                 {
                     updater.Thumbnail = RandomAccessStreamReference.CreateFromStream(pictureStream);
                     bitmap.SetSource(pictureStream);
                     pictureStream.Dispose();
                 }
-
-            }
             else
-            {
-                string result = "";
                 try
                 {
-                    string url = @"https://www.googleapis.com/customsearch/v1?key=AIzaSyDrSn8h3ZnHe_zg-FkVGuHUBNYAhJ31Nqw&cx=000001731481601506413:s6vjwyrugku&fileType=jpg&searchType=image&imgSize=large&num=1&q=" + niceTitle;
+                    var url =
+                        @"https://www.googleapis.com/customsearch/v1?key=AIzaSyDrSn8h3ZnHe_zg-FkVGuHUBNYAhJ31Nqw&cx=000001731481601506413:s6vjwyrugku&fileType=jpg&searchType=image&imgSize=large&num=1&q=" +
+                        niceTitle;
 
-                    HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
-                    HttpWebResponse response = (HttpWebResponse)await request.GetResponseAsync();
+                    var request = (HttpWebRequest) WebRequest.Create(url);
+                    var response = (HttpWebResponse) await request.GetResponseAsync();
 
-                    using (StreamReader sr = new StreamReader(response.GetResponseStream()))
+                    string result;
+                    using (var sr = new StreamReader(response.GetResponseStream()))
                     {
                         result = sr.ReadToEnd();
                     }
 
-                    string image = (string)JObject.Parse(result)["items"][0]["link"];
+                    var image = (string) JObject.Parse(result)["items"][0]["link"];
 
 
-                    using (Stream originalStream = await new HttpClient().GetStreamAsync(image))
+                    using (var originalStream = await new HttpClient().GetStreamAsync(image))
                     {
-                        using (MemoryStream memStream = new MemoryStream())
+                        using (var memStream = new MemoryStream())
                         {
                             await originalStream.CopyToAsync(memStream);
                             memStream.Position = 0;
 
                             await bitmap.SetSourceAsync(memStream.AsRandomAccessStream());
-                            updater.Thumbnail = RandomAccessStreamReference.CreateFromStream(memStream.AsRandomAccessStream());
+                            updater.Thumbnail =
+                                RandomAccessStreamReference.CreateFromStream(memStream.AsRandomAccessStream());
 
-                            StorageFile file = await pictureFolder.CreateFileAsync(niceTitle + ".jpg", CreationCollisionOption.ReplaceExisting);
-                            using (Stream fileStream = await file.OpenStreamForWriteAsync())
+                            var file = await pictureFolder.CreateFileAsync(niceTitle + ".jpg",
+                                CreationCollisionOption.ReplaceExisting);
+                            using (var fileStream = await file.OpenStreamForWriteAsync())
                             {
-                                
-                                byte[] buffer = memStream.ToArray();
+                                var buffer = memStream.ToArray();
                                 await fileStream.WriteAsync(buffer, 0, buffer.Length);
                             }
                         }
@@ -286,34 +269,32 @@ namespace Music
                 {
                     //internet is niet availai
                 }
-            }
             mainPage.albumImage.Source = bitmap;
             updater.Update();
         }
 
         public void StartTimer()
         {
-            musicTimer = new Timer(async (obj) =>
+            musicTimer = new Timer(async obj =>
             {
                 await dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
                 {
-                    if (media.CanSeek)
+                    if (!media.CanSeek) return;
+                    if (media.Position.TotalSeconds > media.NaturalDuration.TimeSpan.TotalSeconds / 2 &&
+                        !thisSongPlayed)
                     {
-                        if (media.Position.TotalSeconds > media.NaturalDuration.TimeSpan.TotalSeconds / 2 && !thisSongPlayed)
-                        {
-                            thisSongPlayed = true;
-                            Playlists[CurrentList].Songs[NowPlaying].PlayCount++;
-                        }
-
-                        if (!mainPage.seekDown)
-                        {
-                            seekBar.Value = media.Position.TotalSeconds * 10;
-                            mainPage.timeTextBlock = TimeToString(media.Position) + "/" + TimeToString(media.NaturalDuration.TimeSpan);
-                        }
+                        thisSongPlayed = true;
+                        Playlists[CurrentList].Songs[NowPlaying].PlayCount++;
                     }
+
+                    if (mainPage.SeekDown) return;
+                    seekBar.Value = media.Position.TotalSeconds * 10;
+                    mainPage.timeTextBlock = TimeToString(media.Position) + "/" +
+                                             TimeToString(media.NaturalDuration.TimeSpan);
                 });
             }, null, 500, 500);
         }
+
         public void StopTimer()
         {
             musicTimer.Dispose();
@@ -322,19 +303,13 @@ namespace Music
         public void SetVolume(int volume, bool changeVal = false)
         {
             if (volume > 100)
-            {
                 volume = 100;
-            }
             else if (volume < 0)
-            {
                 volume = 0;
-            }
             Volume = volume;
-            media.Volume = (double)volume / 100;
+            media.Volume = (double) volume / 100;
             if (firstLoad || changeVal)
-            {
                 mainPage.volumeSlider.Value = volume;
-            }
         }
 
         public void SetSongInfo()
@@ -345,84 +320,87 @@ namespace Music
 
             SetAlbumArt(Playlists[CurrentList].Songs[NowPlaying].NiceTitle);
 
-            mainPage.titleBox = Playlists[CurrentList].Songs[NowPlaying].NiceTitle;
+            mainPage.TitleBox = Playlists[CurrentList].Songs[NowPlaying].NiceTitle;
 
             mainPage.listView.SelectedIndex = NowPlaying;
-            mainPage.listView.ScrollIntoView(mainPage.listView.Items[NowPlaying], ScrollIntoViewAlignment.Leading);
+            if (mainPage.listView.Items != null)
+                mainPage.listView.ScrollIntoView(mainPage.listView.Items[NowPlaying], ScrollIntoViewAlignment.Leading);
 
             mainPage.songInfoBlock.Text = Playlists[CurrentList].Songs[NowPlaying].NiceTitle;
-            if (mainPage.songsList.Visibility == Windows.UI.Xaml.Visibility.Collapsed)
+            if (mainPage.songsList.Visibility != Visibility.Collapsed) return;
+            //controls zijn verstopt
+            mainPage.songInfoBlock.Opacity = .9;
+            if (timeout != null)
             {
-                //controls zijn verstopt
-                mainPage.songInfoBlock.Opacity = .9;
-                if(timeout!= null)
-                {
-                    timeout.Dispose();
-                    timeout = null;
-                }
-                timeout = new Timer(async (a) =>
-                {
-                    await dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
-                    {
-                        mainPage.songInfoBlock.Opacity = 0;
-                        timeout.Dispose();
-                    });
-                }, null, 2000, 1000);
+                timeout.Dispose();
+                timeout = null;
             }
+            timeout = new Timer(async a =>
+            {
+                await dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
+                {
+                    mainPage.songInfoBlock.Opacity = 0;
+                    timeout.Dispose();
+                });
+            }, null, 2000, 1000);
         }
 
-        private List<Song> SortList(List<Song> list, string sortBy = "date", bool ascending = true)
+        private static List<Song> SortList(List<Song> list, string sortBy = "date", bool ascending = true)
         {
             switch (sortBy)
             {
                 case "title":
-                    list = list.OrderBy(Song => Song.NiceTitle).ToList();
+                    list = list.OrderBy(song => song.NiceTitle).ToList();
                     break;
                 case "date":
-                    list = list.OrderBy(Song => Song.DateModified).ToList();
+                    list = list.OrderBy(song => song.DateModified).ToList();
                     break;
                 case "playcount":
-                    list = list.OrderBy(Song => Song.PlayCount).ToList();
+                    list = list.OrderBy(song => song.PlayCount).ToList();
                     break;
                 default:
-                    list = list.OrderBy(Song => Song.NiceTitle).ToList();
+                    list = list.OrderBy(song => song.NiceTitle).ToList();
                     break;
             }
             if (!ascending)
-            {
                 list.Reverse();
-            }
             return list;
         }
+
         private void DisplayList(Playlist list, int selectedIndex)
         {
-            if (songsListView.Items.Count == list.Songs.Count)
+            if (songsListView.Items != null && songsListView.Items.Count == list.Songs.Count)
             {
-                for (int i = 0; i < list.Songs.Count; i++)
+                for (var i = 0; i < list.Songs.Count; i++)
                 {
-                    TextBlock tb = (TextBlock)songsListView.Items[i];
+                    var tb = (TextBlock) songsListView.Items[i];
                     tb.Text = list.Songs[i].NiceTitle;
                 }
             }
             else
             {
-                songsListView.Items.Clear();
-                foreach (Song song in list.Songs)
+                if (songsListView.Items != null)
                 {
-                    TextBlock tb = new TextBlock();
-                    tb.Text = song.NiceTitle;
-                    tb.FontSize = 18;
-                    songsListView.Items.Add(tb);
+                    songsListView.Items.Clear();
+                    foreach (var song in list.Songs)
+                    {
+                        var tb = new TextBlock
+                        {
+                            Text = song.NiceTitle,
+                            FontSize = 18
+                        };
+                        songsListView.Items.Add(tb);
+                    }
                 }
             }
             NowPlaying = selectedIndex;
-            mainPage.dontUpdate = true;
+            mainPage.DontUpdate = true;
             mainPage.listView.SelectedIndex = selectedIndex;
         }
 
         public void ToggleShuffle()
         {
-            Song currentSong = Playlists[CurrentList].Songs[NowPlaying];
+            var currentSong = Playlists[CurrentList].Songs[NowPlaying];
             if (Shuffle)
             {
                 Shuffle = false;
@@ -435,10 +413,11 @@ namespace Music
                 mainPage.shuffleButton.Opacity = 1;
                 Playlists[CurrentList].Songs.Shuffle();
             }
-            int currentIndex = Playlists[CurrentList].Songs.FindSong(currentSong);
+            var currentIndex = Playlists[CurrentList].Songs.FindSong(currentSong);
             DisplayList(Playlists[CurrentList], currentIndex);
             songsListView.ScrollIntoView(NowPlaying, ScrollIntoViewAlignment.Leading);
         }
+
         public void ToggleRepeat()
         {
             if (Repeat)
@@ -455,7 +434,7 @@ namespace Music
 
         public void SortSongs(int index)
         {
-            Song currentSong = Playlists[CurrentList].Songs[NowPlaying];
+            var currentSong = Playlists[CurrentList].Songs[NowPlaying];
             switch (index)
             {
                 case 0:
@@ -489,14 +468,15 @@ namespace Music
             mainPage.listView.ScrollIntoView(NowPlaying, ScrollIntoViewAlignment.Leading);
         }
 
-        public void Loaded()//zodra liedje geladen is
+        public void Loaded() //zodra liedje geladen is
         {
-            double duration = media.NaturalDuration.TimeSpan.TotalSeconds;
+            var duration = media.NaturalDuration.TimeSpan.TotalSeconds;
             seekBar.Maximum = duration * 10;
             if (!firstLoad)
             {
                 media.Play();
-                mainPage.timeTextBlock = TimeToString(media.Position) + "/" + TimeToString(media.NaturalDuration.TimeSpan);
+                mainPage.timeTextBlock = TimeToString(media.Position) + "/" +
+                                         TimeToString(media.NaturalDuration.TimeSpan);
             }
             else
             {
@@ -509,99 +489,75 @@ namespace Music
             NowPlaying = index;
             audio = await StorageFile.GetFileFromPathAsync(Playlists[CurrentList].Songs[index].Path);
 
-            await dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
-            {
-                SetSongInfo();
-            });
+            await dispatcher.RunAsync(CoreDispatcherPriority.Normal, () => { SetSongInfo(); });
 
             if (audio != null)
-            {
                 await dispatcher.RunAsync(CoreDispatcherPriority.Normal, async () =>
                 {
-                    IRandomAccessStream stream = await audio.OpenAsync(FileAccessMode.Read);
+                    var stream = await audio.OpenAsync(FileAccessMode.Read);
                     media.SetSource(stream, audio.ContentType);
                     seekBar.Value = 0;
                 });
-            }
         }
 
         public async void Play(int index = -1)
         {
             if (index != -1)
-            {
                 await LoadSong(index);
-            }
-            await dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
-            {
-                media.Play();
-            });
-
+            await dispatcher.RunAsync(CoreDispatcherPriority.Normal, () => { media.Play(); });
         }
+
         public async void Pause()
         {
-            await dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
-            {
-                mainPage.media.Pause();
-            });
+            await dispatcher.RunAsync(CoreDispatcherPriority.Normal, () => { mainPage.Media.Pause(); });
         }
+
         public void Next()
         {
             if (NowPlaying == Playlists[CurrentList].Songs.Count - 1)
-            {
                 Play(0);
-            }
             else
-            {
                 Play(NowPlaying + 1);
-            }
-
         }
+
         public void Previous()
         {
             if (NowPlaying == 0)
-            {
                 Play(Playlists[CurrentList].Songs.Count - 1);
-            }
             else
-            {
                 Play(NowPlaying - 1);
-            }
         }
+
         public override string ToString()
         {
             return JsonConvert.SerializeObject(this, Formatting.Indented);
         }
 
-        private string TimeToString(TimeSpan time)
+        private static string TimeToString(TimeSpan time)
         {
             if (time.TotalHours >= 1)
-            {
-                return time.Hours.ToString() + ":" + time.Minutes.ToString("D2") + ":" + time.Seconds.ToString("D2");
-            }
-            else
-            {
-                return time.Minutes.ToString() + ":" + time.Seconds.ToString("D2");
-            }
+                return time.Hours + ":" + time.Minutes.ToString("D2") + ":" + time.Seconds.ToString("D2");
+            return time.Minutes + ":" + time.Seconds.ToString("D2");
         }
 
         public static int CompareByTitle(Song song1, Song song2)
         {
-            return song1.NiceTitle.CompareTo(song2.NiceTitle);
+            return string.Compare(song1.NiceTitle, song2.NiceTitle, StringComparison.Ordinal);
         }
     }
 
-    static class extention
+    internal static class Extention
     {
-        private static Random rng = new Random();
+        private static readonly Random Rng = new Random();
 
         public static void Shuffle<T>(this IList<T> list)
         {
-            int n = list.Count;
+            var n = list.Count;
             while (n > 1)
             {
                 n--;
-                int k = rng.Next(n + 1);
-                T value = list[k];
+                var k = Rng.Next(n + 1);
+                var value = list[k];
                 list[k] = list[n];
                 list[n] = value;
             }
@@ -609,28 +565,22 @@ namespace Music
 
         public static int FindSong(this IList<Song> list, Song toFind)
         {
-            for (int i = 0; i < list.Count; i++)
-            {
+            for (var i = 0; i < list.Count; i++)
                 if (list[i] == toFind)
-                {
                     return i;
-                }
-            }
             return -1;
         }
-        
     }
 
-    class SongEqualityComparer : IEqualityComparer<Song>
+    internal class SongEqualityComparer : IEqualityComparer<Song>
     {
         public bool Equals(Song s1, Song s2)
         {
             if (s1 == null && s2 == null)
                 return true;
-            else if (s1 == null | s2 == null)
+            if ((s1 == null) | (s2 == null))
                 return false;
-            else
-                return s1.NiceTitle == s2.NiceTitle;
+            return s1.NiceTitle == s2.NiceTitle;
         }
 
         public int GetHashCode(Song sx)
