@@ -7,21 +7,59 @@ namespace Music
 {
     public class LocalStorage
     {
-        private Dictionary<string, string> storage = new Dictionary<string, string>();
+        private readonly string directory;
         private StorageFolder folder;
-        private string directory;
-        public bool AutoSave { get; set; }
+        private readonly Dictionary<string, string> storage = new Dictionary<string, string>();
 
         public LocalStorage(bool autoSave = true, string relativeDirectory = "data")
         {
             directory = relativeDirectory;
             AutoSave = autoSave;
         }
+
+        public bool AutoSave { get; set; }
+
+
+        public int Count
+        {
+            get { return storage.Count; }
+        }
+
+        public Dictionary<string, string>.KeyCollection Keys
+        {
+            get { return storage.Keys; }
+        }
+
+        public Dictionary<string, string>.ValueCollection Values
+        {
+            get { return storage.Values; }
+        }
+
+        public string this[string key]
+        {
+            get
+            {
+                if (!storage.ContainsKey(key))
+                    return null;
+                return storage[key];
+            }
+            set
+            {
+                if (storage.ContainsKey(key))
+                    storage[key] = value;
+                else
+                    storage.Add(key, value);
+                if (AutoSave)
+                    Save(key);
+            }
+        }
+
         public async Task Initialize()
         {
             if (await ApplicationData.Current.LocalFolder.TryGetItemAsync(directory) == null)
             {
-                folder = await ApplicationData.Current.LocalFolder.CreateFolderAsync(directory, CreationCollisionOption.ReplaceExisting);
+                folder = await ApplicationData.Current.LocalFolder.CreateFolderAsync(directory,
+                    CreationCollisionOption.ReplaceExisting);
             }
             else
             {
@@ -29,7 +67,7 @@ namespace Music
                 IReadOnlyList<IStorageItem> items = await folder.GetItemsAsync();
                 foreach (IStorageItem item in items)
                 {
-                    StorageFile file = (StorageFile)item;
+                    var file = (StorageFile) item;
                     string value = await FileIO.ReadTextAsync(file);
                     storage.Add(file.DisplayName, value);
                 }
@@ -41,41 +79,15 @@ namespace Music
             storage.Clear();
             IReadOnlyList<IStorageItem> toDelete = await folder.GetItemsAsync();
             foreach (IStorageItem item in toDelete)
-            {
                 await item.DeleteAsync(StorageDeleteOption.Default);
-            }
         }
+
         public async void Remove(string key)
         {
             storage.Remove(key);
 
             IStorageItem toDelete = await folder.GetItemAsync(key + ".json");
             await toDelete.DeleteAsync(StorageDeleteOption.Default);
-        }
-
-
-        public int Count
-        {
-            get
-            {
-                return storage.Count;
-            }
-        }
-
-        public Dictionary<string, string>.KeyCollection Keys
-        {
-            get
-            {
-                return storage.Keys;
-            }
-        }
-
-        public Dictionary<string, string>.ValueCollection Values
-        {
-            get
-            {
-                return storage.Values;
-            }
         }
 
         public bool ContainsKey(string key)
@@ -85,11 +97,9 @@ namespace Music
 
         private async void Add(string key, string value)
         {
-            StorageFile file = (StorageFile)await folder.TryGetItemAsync(key + ".json");
+            var file = (StorageFile) await folder.TryGetItemAsync(key + ".json");
             if (file == null)
-            {
                 file = await folder.CreateFileAsync(key + ".json", CreationCollisionOption.ReplaceExisting);
-            }
 
             try
             {
@@ -100,43 +110,16 @@ namespace Music
                 //nikksssss
             }
         }
+
         public void Save(string key)
         {
             Add(key, storage[key]);
         }
+
         public void Save()
         {
             foreach (KeyValuePair<string, string> pair in storage)
-            {
                 Add(pair.Key, pair.Value);
-            }
-        }
-
-        public string this[string key]
-        {
-            get
-            {
-                if (!storage.ContainsKey(key))
-                {
-                    return null;
-                }
-                return storage[key];
-            }
-            set
-            {
-                if (storage.ContainsKey(key))
-                {
-                    storage[key] = value;
-                }
-                else
-                {
-                    storage.Add(key, value);
-                }
-                if (AutoSave)
-                {
-                    Save(key);
-                }
-            }
         }
     }
 }
