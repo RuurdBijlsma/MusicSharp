@@ -7,59 +7,45 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d" Background="#FF1B5B91" KeyDown="Page_KeyDown">
     <Page.Resources>
-        <local:SliderValueConverter x:Key="SliderValueConverter" />
+        <local:SliderValueConverter x:Key="SliderValueConverter"/>
     </Page.Resources>
 
     <Grid Background="#FF0F0F0F" RequestedTheme="Dark">
-        <TextBlock x:Name="CurrentTime" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="200"
-                   FontWeight="Thin" Foreground="White" Margin="0,0,0,50" Opacity="0.9"
-                   DoubleTapped="BackgroundPanel_DoubleTapped" Text="5" Canvas.ZIndex="1" />
-        <TextBlock x:Name="SongInfoBlock" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,200,0,0"
-                   FontSize="26.667" Canvas.ZIndex="1" Opacity="0">
-            Song name - artiest
-        </TextBlock>
+        <TextBlock x:Name="CurrentTime" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="200" FontWeight="Thin" Foreground="White" Margin="0,0,0,50" Opacity="0.9" DoubleTapped="BackgroundPanel_DoubleTapped" Text="5" Canvas.ZIndex="1"/>
+        <TextBlock x:Name="SongInfoBlock" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,200,0,0" FontSize="26.667" Canvas.ZIndex="1" Opacity="0">Song name - artiest</TextBlock>
+        
+        <StackPanel x:Name="BackgroundPanel" Background="#FF0A0A0A" DoubleTapped="BackgroundPanel_DoubleTapped"/>
 
-        <StackPanel x:Name="BackgroundPanel" Background="#FF0A0A0A" DoubleTapped="BackgroundPanel_DoubleTapped" />
-
-        <Slider x:Name="SeekBar" Height="40" Maximum="1000" Background="Transparent" VerticalAlignment="Bottom"
-                Margin="0,0,0,50" Canvas.ZIndex="10" Foreground="White" LargeChange="50" TickPlacement="None"
-                ThumbToolTipValueConverter="{StaticResource SliderValueConverter}" SmallChange="10"
-                ValueChanged="SeekBar_ValueChanged" IsRightTapEnabled="False" IsDoubleTapEnabled="False"
-                UseSystemFocusVisuals="False" IsTabStop="False" />
+        <Slider x:Name="SeekBar" Height="40" Maximum="1000" Background="Transparent" VerticalAlignment="Bottom" Margin="0,0,0,50" Canvas.ZIndex="10" Foreground="White" LargeChange="50" TickPlacement="None" ThumbToolTipValueConverter="{StaticResource SliderValueConverter}" SmallChange="10" ValueChanged="SeekBar_ValueChanged" IsRightTapEnabled="False" IsDoubleTapEnabled="False" UseSystemFocusVisuals="False" IsTabStop="False"/>
 
 
-        <StackPanel x:Name="SongInfo" Width="500" Height="200" HorizontalAlignment="Left" VerticalAlignment="Top"
-                    Background="Black">
+
+        <StackPanel x:Name="SongInfo" Width="500" Height="200" HorizontalAlignment="Left" VerticalAlignment="Top" Background="Black">
             <Image x:Name="AlbumImage" Height="500" Stretch="UniformToFill" RenderTransformOrigin="0.5,0.5">
                 <Image.RenderTransform>
-                    <CompositeTransform TranslateY="-150" />
+                    <CompositeTransform TranslateY="-150"/>
                 </Image.RenderTransform>
             </Image>
             <StackPanel Width="500" Height="200" RenderTransformOrigin="0.5,0.5">
                 <StackPanel.Background>
                     <LinearGradientBrush EndPoint="0.5,1" StartPoint="0.5,0">
-                        <GradientStop Color="Transparent" Offset="1" />
-                        <GradientStop Color="#CC000000" />
+                        <GradientStop Color="Transparent" Offset="1"/>
+                        <GradientStop Color="#CC000000"/>
                     </LinearGradientBrush>
                 </StackPanel.Background>
                 <StackPanel.RenderTransform>
-                    <CompositeTransform TranslateY="-500" />
+                    <CompositeTransform TranslateY="-500"/>
                 </StackPanel.RenderTransform>
             </StackPanel>
-            <TextBlock x:Name="titleTextBox" FontSize="46.667" Height="200" Width="500" TextWrapping="WrapWholeWords"
-                       TextTrimming="WordEllipsis" FontFamily="MS UI Gothic" Padding="15" Text=""
-                       RenderTransformOrigin="0.5,0.5" Foreground="White" Canvas.ZIndex="2">
+            <TextBlock x:Name="titleTextBox" FontSize="46.667" Height="200" Width="500" TextWrapping="WrapWholeWords" TextTrimming="WordEllipsis" FontFamily="MS UI Gothic" Padding="15" Text="" RenderTransformOrigin="0.5,0.5" Foreground="White" Canvas.ZIndex="2">
                 <TextBlock.RenderTransform>
-                    <CompositeTransform TranslateY="-700" />
+                    <CompositeTransform TranslateY="-700"/>
                 </TextBlock.RenderTransform>
             </TextBlock>
         </StackPanel>
 
-        <StackPanel x:Name="SortBar" VerticalAlignment="Top" HorizontalAlignment="Left" Width="500" Height="44"
-                    Margin="0,200,0,0" Background="#FF1B5B91" Canvas.ZIndex="2">
-            <ComboBox x:Name="SortSelect" Margin="5,5,0,0" Background="#66000000" FontSize="16" Foreground="White"
-                      SelectedIndex="0" RequestedTheme="Dark" SelectionChanged="SortSelect_SelectionChanged"
-                      BorderBrush="#66000000" PlaceholderText="Sort songs">
+        <StackPanel x:Name="SortBar" VerticalAlignment="Top" HorizontalAlignment="Left" Width="500" Height="44" Margin="0,200,0,0" Background="#FF1B5B91" Canvas.ZIndex="2">
+            <ComboBox x:Name="SortSelect" Margin="5,5,0,0" Background="#66000000" FontSize="16" Foreground="White" SelectedIndex="0" RequestedTheme="Dark" SelectionChanged="SortSelect_SelectionChanged" BorderBrush="#66000000" PlaceholderText="Sort songs">
                 <ComboBoxItem>Sort by: Date (new to old)</ComboBoxItem>
                 <ComboBoxItem>Sort by: Date (old to new)</ComboBoxItem>
                 <ComboBoxItem>Sort by: Title (A to Z)</ComboBoxItem>
@@ -68,90 +54,66 @@
                 <ComboBoxItem>Sort by: Least played</ComboBoxItem>
             </ComboBox>
         </StackPanel>
-
-        <ListView x:Name="SongsList" Margin="0,244,0,70" Width="500" HorizontalAlignment="Left" Background="#FF1D98FF"
-                  SelectionChanged="SongsList_SelectionChanged" IsTextScaleFactorEnabled="False" FontSize="48"
-                  Canvas.ZIndex="2" />
+        
+        <ListView x:Name="SongsList" Margin="0,244,0,70" Width="500" HorizontalAlignment="Left" Background="#FF1D98FF" SelectionChanged="SongsList_SelectionChanged" IsTextScaleFactorEnabled="False" FontSize="48" Canvas.ZIndex="2">
+        </ListView>
 
         <StackPanel x:Name="Hidden" Visibility="Collapsed">
-            <Image x:Name="PauseImage" Source="Assets/pause.png" />
-            <Image x:Name="PlayImage" Source="Assets/play.png" />
-            <Image x:Name="PrevImage" Source="Assets/prev.png" />
-            <Image x:Name="PrevHoverImage" Source="Assets/prevhover.png" />
-            <Image x:Name="NextImage" Source="Assets/next.png" />
-            <Image x:Name="NextHoverImage" Source="Assets/nexthover.png" />
-            <Image x:Name="ShuffleImage" Source="Assets/shuffleon.png" />
-            <Image x:Name="ShuffleHoverImage" Source="Assets/shuffleonhover.png" />
-            <Image x:Name="RepeatImage" Source="Assets/repeaton.png" />
-            <Image x:Name="RepeatHoverImage" Source="Assets/repeatonhover.png" />
+            <Image x:Name="PauseImage" Source="Assets/pause.png"></Image>
+            <Image x:Name="PlayImage" Source="Assets/play.png"></Image>
+            <Image x:Name="PrevImage" Source="Assets/prev.png"></Image>
+            <Image x:Name="PrevHoverImage" Source="Assets/prevhover.png"></Image>
+            <Image x:Name="NextImage" Source="Assets/next.png"></Image>
+            <Image x:Name="NextHoverImage" Source="Assets/nexthover.png"></Image>
+            <Image x:Name="ShuffleImage" Source="Assets/shuffleon.png"></Image>
+            <Image x:Name="ShuffleHoverImage" Source="Assets/shuffleonhover.png"></Image>
+            <Image x:Name="RepeatImage" Source="Assets/repeaton.png"></Image>
+            <Image x:Name="RepeatHoverImage" Source="Assets/repeatonhover.png"></Image>
         </StackPanel>
 
-        <StackPanel x:Name="Controls" Height="70" VerticalAlignment="Bottom" Background="#FF1B5B91"
-                    UseLayoutRounding="False" Canvas.ZIndex="2">
-            <TextBlock x:Name="TimeTextBlock" Height="40" HorizontalAlignment="Left" FontSize="29.333"
-                       FontFamily="Segoe UI Light" Margin="10,20,0,0" FontWeight="Thin">
-                2:30/5:12
-            </TextBlock>
-            <Image x:Name="RepeatButton" Source="Assets/repeaton.png" Width="50" Height="50"
-                   HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,10,300,0"
-                   PointerEntered="RepeatButton_PointerEntered" PointerExited="RepeatButton_PointerExited"
-                   Tapped="RepeatButton_Tapped" RenderTransformOrigin="0.5,0.5">
+        <StackPanel x:Name="Controls" Height="70" VerticalAlignment="Bottom" Background="#FF1B5B91" UseLayoutRounding="False" Canvas.ZIndex="2">
+            <TextBlock x:Name="TimeTextBlock" Height="40" HorizontalAlignment="Left" FontSize="29.333" FontFamily="Segoe UI Light" Margin="10,20,0,0" FontWeight="Thin">2:30/5:12</TextBlock>
+            <Image x:Name="RepeatButton" Source="Assets/repeaton.png" Width="50" Height="50" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,10,300,0" PointerEntered="RepeatButton_PointerEntered" PointerExited="RepeatButton_PointerExited" Tapped="RepeatButton_Tapped" RenderTransformOrigin="0.5,0.5">
                 <Image.RenderTransform>
-                    <CompositeTransform TranslateY="-60" />
+                    <CompositeTransform TranslateY="-60"/>
                 </Image.RenderTransform>
             </Image>
-            <Image x:Name="PrevButton" Source="Assets/prev.png" Width="50" Height="50" HorizontalAlignment="Center"
-                   Margin="0,10,150,0" IsDoubleTapEnabled="False" PointerEntered="PrevButton_PointerEntered"
-                   PointerExited="PrevButton_PointerExited" Tapped="PrevButton_Tapped" RenderTransformOrigin="0.5,0.5">
+            <Image x:Name="PrevButton" Source="Assets/prev.png" Width="50" Height="50" HorizontalAlignment="Center" Margin="0,10,150,0" IsDoubleTapEnabled="False" PointerEntered="PrevButton_PointerEntered" PointerExited="PrevButton_PointerExited" Tapped="PrevButton_Tapped" RenderTransformOrigin="0.5,0.5">
                 <Image.RenderTransform>
-                    <CompositeTransform TranslateY="-120" />
+                    <CompositeTransform TranslateY="-120"/>
                 </Image.RenderTransform>
             </Image>
-            <Image x:Name="PlayButton" Source="Assets/play.png" Width="50" Height="50" HorizontalAlignment="Center"
-                   Margin="0,10,0,0" IsDoubleTapEnabled="False" Tapped="PlayButton_Tapped"
-                   RenderTransformOrigin="0.5,0.5" PointerEntered="PlayButton_PointerEntered"
-                   PointerExited="PlayButton_PointerExited">
+            <Image x:Name="PlayButton" Source="Assets/play.png" Width="50" Height="50" HorizontalAlignment="Center" Margin="0,10,0,0" IsDoubleTapEnabled="False" Tapped="PlayButton_Tapped" RenderTransformOrigin="0.5,0.5" PointerEntered="PlayButton_PointerEntered" PointerExited="PlayButton_PointerExited">
                 <Image.RenderTransform>
-                    <CompositeTransform TranslateY="-180" />
+                    <CompositeTransform TranslateY="-180"/>
                 </Image.RenderTransform>
             </Image>
-            <Image x:Name="NextButton" Source="Assets/next.png" Width="50" Height="50" HorizontalAlignment="Center"
-                   Margin="150,10,0,0" IsDoubleTapEnabled="False" RenderTransformOrigin="0.5,0.5"
-                   PointerEntered="NextButton_PointerEntered" PointerExited="NextButton_PointerExited"
-                   Tapped="NextButton_Tapped">
+            <Image x:Name="NextButton" Source="Assets/next.png" Width="50" Height="50" HorizontalAlignment="Center" Margin="150,10,0,0" IsDoubleTapEnabled="False" RenderTransformOrigin="0.5,0.5" PointerEntered="NextButton_PointerEntered" PointerExited="NextButton_PointerExited" Tapped="NextButton_Tapped">
                 <Image.RenderTransform>
-                    <CompositeTransform TranslateY="-240" />
+                    <CompositeTransform TranslateY="-240"/>
                 </Image.RenderTransform>
             </Image>
-            <Image x:Name="ShuffleButton" Source="Assets/shuffleon.png" Width="50" Height="50"
-                   HorizontalAlignment="Center" VerticalAlignment="Center" Margin="300,10,0,0"
-                   RenderTransformOrigin="0.5,0.5" PointerEntered="ShuffleButton_PointerEntered"
-                   PointerExited="ShuffleButton_PointerExited" Tapped="ShuffleButton_Tapped" Opacity="0.5">
+            <Image x:Name="ShuffleButton" Source="Assets/shuffleon.png" Width="50" Height="50" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="300,10,0,0" RenderTransformOrigin="0.5,0.5" PointerEntered="ShuffleButton_PointerEntered" PointerExited="ShuffleButton_PointerExited" Tapped="ShuffleButton_Tapped" Opacity="0.5">
                 <Image.RenderTransform>
-                    <CompositeTransform TranslateY="-300" />
+                    <CompositeTransform TranslateY="-300"/>
                 </Image.RenderTransform>
             </Image>
-            <Image Width="50" Height="50" RenderTransformOrigin="0.5,0.5" HorizontalAlignment="Right" Margin="0,10,0,0"
-                   Source="Assets/volume.png">
+            <Image Width="50" Height="50" RenderTransformOrigin="0.5,0.5" HorizontalAlignment="Right" Margin="0,10,0,0" Source="Assets/volume.png">
                 <Image.RenderTransform>
-                    <CompositeTransform TranslateY="-360" TranslateX="-170" />
+                    <CompositeTransform TranslateY="-360" TranslateX="-170"/>
                 </Image.RenderTransform>
             </Image>
-            <Slider x:Name="VolumeSlider" Width="150" Height="40" HorizontalAlignment="Right" Margin="0,15,10,0"
-                    RenderTransformOrigin="0.5,0.5" IsThumbToolTipEnabled="False"
-                    ValueChanged="VolumeSlider_ValueChanged" PointerWheelChanged="VolumeSlider_PointerWheelChanged"
-                    IsDoubleTapEnabled="False" IsRightTapEnabled="False" UseSystemFocusVisuals="False">
+            <Slider x:Name="VolumeSlider" Width="150" Height="40" HorizontalAlignment="Right" Margin="0,15,10,0" RenderTransformOrigin="0.5,0.5" IsThumbToolTipEnabled="False" ValueChanged="VolumeSlider_ValueChanged" PointerWheelChanged="VolumeSlider_PointerWheelChanged" IsDoubleTapEnabled="False" IsRightTapEnabled="False" UseSystemFocusVisuals="False">
                 <Slider.RenderTransform>
-                    <CompositeTransform TranslateY="-420" />
+                    <CompositeTransform TranslateY="-420"/>
                 </Slider.RenderTransform>
             </Slider>
         </StackPanel>
 
-        <MediaElement x:Name="mediaElement"
-                      CurrentStateChanged="MediaElement_CurrentStateChanged"
-                      Margin="5"
-                      HorizontalAlignment="Stretch" AreTransportControlsEnabled="True" Visibility="Collapsed"
-                      AutoPlay="False" AudioCategory="BackgroundCapableMedia" />
+        <MediaElement x:Name="mediaElement" 
+          CurrentStateChanged="MediaElement_CurrentStateChanged"
+          Margin="5" 
+          HorizontalAlignment="Stretch" AreTransportControlsEnabled="True" Visibility="Collapsed" AutoPlay="False" AudioCategory="BackgroundCapableMedia"/>
 
     </Grid>
 

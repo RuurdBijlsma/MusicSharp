@@ -1,53 +1,142 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
-using System.Threading.Tasks;
-using Windows.Media;
-using Windows.Storage;
-using Windows.Storage.AccessCache;
-using Windows.Storage.Pickers;
-using Windows.System;
-using Windows.UI;
-using Windows.UI.Core;
-using Windows.UI.Text;
-using Windows.UI.ViewManagement;
+using System.Runtime.InteropServices.WindowsRuntime;
+using Windows.Foundation;
+using Windows.Foundation.Collections;
 using Windows.UI.Xaml;
+using Windows.UI.Core;
+using Windows.Media;
 using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Controls.Primitives;
+using Windows.UI.Xaml.Data;
 using Windows.UI.Xaml.Input;
 using Windows.UI.Xaml.Media;
+using Windows.UI.Xaml.Navigation;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using Windows.Storage;
+using Windows.System.UserProfile;
+using System.Threading.Tasks;
+using System.Threading;
+using Windows.System;
+using Windows.UI.ViewManagement;
+using System.Net.Http;
+using System.Text;
+using Google.Apis.Customsearch;
+using System.Net;
+using Windows.UI.Xaml.Media.Imaging;
 
 // The Blank Page item template is documented at http://go.microsoft.com/fwlink/?LinkId=402352&clcid=0x409
 
 namespace Music
 {
     /// <summary>
-    ///     An empty page that can be used on its own or navigated to within a Frame.
+    /// An empty page that can be used on its own or navigated to within a Frame.
     /// </summary>
-    public sealed partial class MainPage
+    public sealed partial class MainPage : Page
     {
-        public readonly SystemMediaTransportControls controls;
-        private readonly CoreDispatcher dispatcher = CoreWindow.GetForCurrentThread().Dispatcher;
+        public string timeTextBlock
+        {
+            get { return TimeTextBlock.Text; }
+            set { TimeTextBlock.Text = value; }
+        }
+        public MediaElement media
+        {
+            get
+            {
+                return mediaElement;
+            }
+        }
+        public ListView songsList
+        {
+            get
+            {
+                return SongsList;
+            }
+        }
+        public string titleBox
+        {
+            get
+            {
+                return (string)titleTextBox.Text;
+            }
+            set
+            {
+                titleTextBox.Text = value;
+            }
+        }
+        public Image repeatButton
+        {
+            get { return RepeatButton; }
+            set { RepeatButton = value; }
+        }
+        public Image shuffleButton
+        {
+            get { return ShuffleButton; }
+            set { ShuffleButton = value; }
+        }
+        public Image albumImage
+        {
+            get { return AlbumImage; }
+            set { AlbumImage = value; }
+        }
+        public Slider volumeSlider
+        {
+            get { return VolumeSlider; }
+            set { VolumeSlider = value; }
+        }
+        public TextBlock currentTime
+        {
+            get { return CurrentTime; }
+            set { CurrentTime = value; }
+        }
+        public TextBlock songInfoBlock
+        {
+            get { return SongInfoBlock; }
+            set { SongInfoBlock = value; }
+        }
+        public Slider seekBar { get { return SeekBar; } }
+        public ListView listView { get { return SongsList; } }
 
-        private readonly List<Song> foundSongs = new List<Song>();
-        public bool DontUpdate;
+        void Controls_ButtonPressed(SystemMediaTransportControls sender, SystemMediaTransportControlsButtonPressedEventArgs args)
+        {
+            switch (args.Button)
+            {
+                case SystemMediaTransportControlsButton.Play:
+                    manager.Play();
+                    break;
+                case SystemMediaTransportControlsButton.Pause:
+                    manager.Pause();
+                    break;
+                case SystemMediaTransportControlsButton.Next:
+                    manager.Next();
+                    break;
+                case SystemMediaTransportControlsButton.Previous:
+                    manager.Previous();
+                    break;
+                default:
+                    break;
+            }
+        }
 
-        private bool firstLoad = true;
+        public LocalStorage localStorage = new LocalStorage(false);
+        MusicManager manager;
+        Clock clock;
+        private CoreDispatcher dispatcher = CoreWindow.GetForCurrentThread().Dispatcher;
 
-        public LocalStorage LocalStorage = new LocalStorage(false);
-        private MusicManager manager;
+        public SystemMediaTransportControls controls;
 
-
-        public bool SeekDown;
 
 
         public MainPage()
         {
-            InitializeComponent();
+            this.InitializeComponent();
 
-            var ff = new FontFamily("Segoe");
-            var fw = new FontWeight {Weight = 100};
+            FontFamily ff = new FontFamily("Segoe");
+            Windows.UI.Text.FontWeight fw = new Windows.UI.Text.FontWeight();
+            fw.Weight = 100;
             titleTextBox.FontFamily = ff;
             titleTextBox.FontWeight = fw;
             SongsList.FontWeight = fw;
@@ -55,14 +144,14 @@ namespace Music
             TimeTextBlock.FontWeight = fw;
 
 
-            new Clock(CurrentTime);
+            clock = new Clock(CurrentTime);
 
 
             SeekBar.AddHandler(PointerPressedEvent,
                 new PointerEventHandler(SeekBar_MouseDown), true);
 
             SeekBar.AddHandler(PointerReleasedEvent,
-                new PointerEventHandler(SeekBar_MouseUp), true);
+            new PointerEventHandler(SeekBar_MouseUp), true);
 
 
             Window.Current.VisibilityChanged += async (ss, ee) =>
@@ -70,10 +159,14 @@ namespace Music
                 await dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
                 {
                     if (mediaElement.CanSeek && mediaElement != null && mediaElement.Position.TotalSeconds != 0)
+                    {
                         manager.StartTime = mediaElement.Position;
+                    }
                     if (manager != null)
-                        LocalStorage["Music"] = manager.ToString();
-                    LocalStorage.Save();
+                    {
+                        localStorage["Music"] = manager.ToString();
+                    }
+                    localStorage.Save();
                 });
             };
 
@@ -81,10 +174,8 @@ namespace Music
 
             Startup();
 
-            Application.Current.Resources["SystemControlHighlightListAccentLowBrush"] =
-                new SolidColorBrush(Color.FromArgb(50, 255, 255, 255));
-            Application.Current.Resources["SystemControlHighlightListAccentMediumBrush"] =
-                new SolidColorBrush(Color.FromArgb(100, 255, 255, 255));
+            Application.Current.Resources["SystemControlHighlightListAccentLowBrush"] = new SolidColorBrush(Windows.UI.Color.FromArgb(50, 255, 255, 255));
+            Application.Current.Resources["SystemControlHighlightListAccentMediumBrush"] = new SolidColorBrush(Windows.UI.Color.FromArgb(100, 255, 255, 255));
 
             controls = SystemMediaTransportControls.GetForCurrentView();
             controls.ButtonPressed += Controls_ButtonPressed;
@@ -95,75 +186,6 @@ namespace Music
             controls.IsPreviousEnabled = true;
         }
 
-        public string timeTextBlock
-        {
-            get { return TimeTextBlock.Text; }
-            set { TimeTextBlock.Text = value; }
-        }
-
-        public MediaElement Media => mediaElement;
-
-        public ListView songsList => SongsList;
-
-        public string TitleBox
-        {
-            get { return titleTextBox.Text; }
-            set { titleTextBox.Text = value; }
-        }
-
-        public Image repeatButton
-        {
-            get { return RepeatButton; }
-            set { RepeatButton = value; }
-        }
-
-        public Image shuffleButton
-        {
-            get { return ShuffleButton; }
-            set { ShuffleButton = value; }
-        }
-
-        public Image albumImage
-        {
-            get { return AlbumImage; }
-            set { AlbumImage = value; }
-        }
-
-        public Slider volumeSlider
-        {
-            get { return VolumeSlider; }
-            set { VolumeSlider = value; }
-        }
-
-        public TextBlock currentTime
-        {
-            get { return CurrentTime; }
-            set { CurrentTime = value; }
-        }
-
-        public TextBlock songInfoBlock
-        {
-            get { return SongInfoBlock; }
-            set { SongInfoBlock = value; }
-        }
-
-        public Slider seekBar => SeekBar;
-
-        public ListView listView => SongsList;
-
-        private void Controls_ButtonPressed(SystemMediaTransportControls sender,
-            SystemMediaTransportControlsButtonPressedEventArgs args)
-        {
-            if (args.Button == SystemMediaTransportControlsButton.Play)
-                manager.Play();
-            else if (args.Button == SystemMediaTransportControlsButton.Pause)
-                manager.Pause();
-            else if (args.Button == SystemMediaTransportControlsButton.Next)
-                manager.Next();
-            else if (args.Button == SystemMediaTransportControlsButton.Previous)
-                manager.Previous();
-        }
-
         private void LoadedMedia(object sender, RoutedEventArgs e)
         {
             manager.Loaded();
@@ -171,15 +193,18 @@ namespace Music
 
         private async void Startup()
         {
-            await LocalStorage.Initialize();
 
-            if (LocalStorage["Music"] == null)
+            await localStorage.Initialize();
+
+            if (localStorage["Music"] == null)
             {
+
                 //first startup, er staan nog geen liedjes in de file
-                var folder = await AddFolder();
-                manager = new MusicManager(await GetSongsFromFolder(folder), this, new List<string> {folder.Path});
+                StorageFolder folder = await AddFolder();
+                manager = new MusicManager(await GetSongsFromFolder(folder), this, new List<string>() { folder.Path });
                 manager.MusicFolders.Add(folder.Path);
-                LocalStorage["Music"] = manager.ToString();
+                localStorage["Music"] = manager.ToString();
+
             }
             else
             {
@@ -188,14 +213,12 @@ namespace Music
             }
 
 
-            foreach (var song in manager.Playlists[manager.CurrentList].Songs)
+            foreach (Song song in manager.Playlists[manager.CurrentList].Songs)
             {
-                var tb = new TextBlock
-                {
-                    Text = song.NiceTitle,
-                    FontSize = 18
-                };
-                SongsList.Items?.Add(tb);
+                TextBlock tb = new TextBlock();
+                tb.Text = song.NiceTitle;
+                tb.FontSize = 18;
+                SongsList.Items.Add(tb);
             }
 
             manager.SetSongInfo();
@@ -203,122 +226,154 @@ namespace Music
 
         private async void UpdateSongs()
         {
-            var toSearch = manager.MusicFolders.Distinct();
-            var newSongs = new List<Song>();
-            foreach (var directory in toSearch)
-                newSongs.AddRange(await GetSongsFromFolder(await StorageFolder.GetFolderFromPathAsync(directory)));
-            newSongs = newSongs.Distinct().OrderBy(song => song.NiceTitle).ToList();
-            var oldSongs = manager.Playlists[0].Songs;
-
-            var songEquals = new SongEqualityComparer();
-            var removeSongs = oldSongs.Except(newSongs, songEquals).ToList();
-
-            var comp = Comparer<Song>.Create(MusicManager.CompareByTitle);
-
-            var toRemove = new List<int>();
-            for (var i = oldSongs.Count - 1; i >= 0; i--)
+            IEnumerable<string> toSearch = manager.MusicFolders.Distinct();
+            List<Song> newSongs = new List<Song>();
+            foreach (string directory in toSearch)
             {
-                var zelfdeSong = newSongs.BinarySearch(oldSongs[i], comp);
+                newSongs.AddRange(await GetSongsFromFolder(await StorageFolder.GetFolderFromPathAsync(directory)));
+            }
+            newSongs = newSongs.Distinct().OrderBy(Song => Song.NiceTitle).ToList();
+            List<Song> oldSongs = manager.Playlists[0].Songs;
+
+            SongEqualityComparer songEquals = new SongEqualityComparer();
+            List<Song> removeSongs = oldSongs.Except(newSongs, songEquals).ToList();
+
+            Comparer<Song> comp = Comparer<Song>.Create(MusicManager.CompareByTitle);
+
+            List<int> toRemove = new List<int>();
+            for (int i = oldSongs.Count - 1; i >= 0; i--)
+            {
+                int zelfdeSong = newSongs.BinarySearch(oldSongs[i], comp);
                 if (zelfdeSong >= 0)
+                {
                     toRemove.Add(zelfdeSong);
+                }
             }
             toRemove.Sort();
             toRemove.Reverse();
-            foreach (var t in toRemove)
-                newSongs.RemoveAt(t);
+            for (int i = 0; i < toRemove.Count; i++)
+            {
+                newSongs.RemoveAt(toRemove[i]);
+            }
             if (newSongs.Count > 0)
+            {
                 manager.AddSongs(newSongs);
+            }
             if (removeSongs.Count > 0)
+            {
                 manager.RemoveSongs(removeSongs);
+            }
         }
 
         private MusicManager GetManager()
         {
-            var playlists = new List<Playlist>();
-            var songList = new List<Song>();
-            JToken playlistJson = JObject.Parse(LocalStorage["Music"]);
-            var nowPlaying = (int) playlistJson["NowPlaying"];
-            var currentList = (int) playlistJson["CurrentList"];
-            var sort = (string) playlistJson["SortBy"];
-            var ascending = (bool) playlistJson["Ascending"];
-            var shuffle = (bool) playlistJson["Shuffle"];
-            var repeat = (bool) playlistJson["Repeat"];
-            var volume = (int) playlistJson["Volume"];
+            List<Playlist> playlists = new List<Playlist>();
+            List<Song> songList = new List<Song>();
+            List<string> folders = new List<string>();
+            JToken playlistJson = JObject.Parse(localStorage["Music"]);
+            int nowPlaying = (int)playlistJson["NowPlaying"];
+            int currentList = (int)playlistJson["CurrentList"];
+            string sort = (string)playlistJson["SortBy"];
+            bool ascending = (bool)playlistJson["Ascending"];
+            bool shuffle = (bool)playlistJson["Shuffle"];
+            bool repeat = (bool)playlistJson["Repeat"];
+            int volume = (int)playlistJson["Volume"];
 
-            var folderJson = playlistJson["MusicFolders"];
-            var folders = folderJson.Select(folder => (string) folder).ToList();
+            JToken folderJson = playlistJson["MusicFolders"];
+            foreach (JToken folder in folderJson)
+            {
+                folders.Add((string)folder);
+            }
 
-            var time = (string) playlistJson["StartTime"];
-            var hms = time.Split(':');
+            string time = (string)playlistJson["StartTime"];
+            string[] hms = time.Split(':');
 
-            int.TryParse(hms[0], out int h);
-            int.TryParse(hms[1], out int m);
-            double.TryParse(hms[2], out double s);
+            int h;
+            int.TryParse(hms[0], out h);
+            int m;
+            int.TryParse(hms[1], out m);
+            double s;
+            double.TryParse(hms[2], out s);
 
-            var startTime = new TimeSpan(0, h, m, (int) s, (int) (s % 1 * 1000));
+            TimeSpan startTime = new TimeSpan(0, h, m, (int)s, (int)((s % 1) * 1000));
             if (startTime.TotalSeconds < 1)
+            {
                 startTime = new TimeSpan(0);
-            var playlistsJson = playlistJson["Playlists"];
-            foreach (var playlist in playlistsJson)
+            }
+            JToken playlistsJson = playlistJson["Playlists"];
+            foreach (JToken playlist in playlistsJson)
             {
                 songList.Clear();
-                var name = (string) playlist["Name"];
-                var songsJson = playlist["Songs"];
-                songList.AddRange(from song in songsJson
-                    let fullTitle = (string) song["FullTitle"]
-                    let path = (string) song["Path"]
-                    let dateAdded = (long) song["DateModified"]
-                    let niceTitle = (string) song["NiceTitle"]
-                    let playCount = (int) song["PlayCount"]
-                    select new Song(fullTitle, path, dateAdded, playCount));
+                string name = (string)playlist["Name"];
+                JToken songsJson = playlist["Songs"];
+                foreach (JToken song in songsJson)
+                {
+                    string fullTitle = (string)song["FullTitle"];
+                    string path = (string)song["Path"];
+                    long dateAdded = (long)song["DateModified"];
+                    string niceTitle = (string)song["NiceTitle"];
+                    int playCount = (int)song["PlayCount"];
+                    songList.Add(new Song(fullTitle, path, dateAdded, playCount, niceTitle));
+                }
                 playlists.Add(new Playlist(name, songList));
             }
-            return new MusicManager(songList, this, folders, playlists, currentList, sort, ascending, nowPlaying,
-                startTime.Ticks, shuffle, repeat, volume);
+            return new MusicManager(songList, this, folders, playlists, currentList, sort, ascending, nowPlaying, startTime.Ticks, shuffle, repeat, volume);
         }
 
-        private static async Task<StorageFolder> AddFolder()
+        private async Task<StorageFolder> AddFolder()
         {
-            var folderPicker = new FolderPicker {SuggestedStartLocation = PickerLocationId.MusicLibrary};
+            Windows.Storage.Pickers.FolderPicker folderPicker = new Windows.Storage.Pickers.FolderPicker();
+            folderPicker.SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.MusicLibrary;
             folderPicker.FileTypeFilter.Add("*");
 
-            var folder = await folderPicker.PickSingleFolderAsync();
-            if (folder == null) return null;
-            // Application now has read/write access to all contents in the picked folder
-            // (including other sub-folder contents)
-            StorageApplicationPermissions.
+            StorageFolder folder = await folderPicker.PickSingleFolderAsync();
+            if (folder != null)
+            {
+                // Application now has read/write access to all contents in the picked folder
+                // (including other sub-folder contents)
+                Windows.Storage.AccessCache.StorageApplicationPermissions.
                 FutureAccessList.AddOrReplace("PickedFolderToken", folder);
 
-            return folder;
+                return folder;
+            }
+            else
+            {
+                return null;
+            }
         }
 
         private async Task<List<Song>> GetSongsFromFolder(StorageFolder folder)
         {
-            await ExploreFolder(folder);
+            await exploreFolder(folder);
             return foundSongs;
         }
 
-        private async Task ExploreFolder(IStorageFolder folder)
+        List<Song> foundSongs = new List<Song>();
+
+        private async Task exploreFolder(StorageFolder folder)
         {
-            var items = await folder.GetItemsAsync();
-            foreach (var item in items)
+            IReadOnlyList<IStorageItem> items = await folder.GetItemsAsync();
+            foreach (IStorageItem item in items)
+            {
                 if (item is StorageFolder)
                 {
-                    await ExploreFolder(item as StorageFolder);
+                    await exploreFolder((StorageFolder)item);
                 }
                 else
                 {
-                    var song = (StorageFile) item;
-                    if (song.FileType != ".mp3" && song.FileType != ".m4a") continue;
-                    var properties = await item.GetBasicPropertiesAsync();
-                    foundSongs.Add(new Song(item.Name, item.Path, properties.DateModified.ToUnixTimeMilliseconds()));
-                    if (foundSongs.GroupBy(s =>
+                    StorageFile song = (StorageFile)item;
+                    if (song.FileType == ".mp3" || song.FileType == ".m4a")
                     {
-                        if (s == null) throw new ArgumentNullException(nameof(s));
-                        return s.NiceTitle;
-                    }).ToList().Count != foundSongs.Count)
-                        foundSongs.RemoveAt(foundSongs.Count - 1);
+                        Windows.Storage.FileProperties.BasicProperties properties = await item.GetBasicPropertiesAsync();
+                        foundSongs.Add(new Song(item.Name, item.Path, properties.DateModified.ToUnixTimeMilliseconds()));
+                        if (foundSongs.GroupBy(Song => Song.NiceTitle).ToList().Count != foundSongs.Count)
+                        {
+                            //duplicate found
+                            foundSongs.RemoveAt(foundSongs.Count - 1);
+                        }
+                    }
                 }
+            }
         }
 
         private void ToggleControls()
@@ -343,11 +398,13 @@ namespace Music
             }
         }
 
+        bool firstLoad = true;
+        public bool dontUpdate = false;
         private void SongsList_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (!DontUpdate)
+            if (!dontUpdate)
             {
-                var index = SongsList.SelectedIndex;
+                int index = SongsList.SelectedIndex;
                 if (firstLoad)
                 {
                     firstLoad = false;
@@ -361,12 +418,13 @@ namespace Music
             }
             else
             {
-                DontUpdate = false;
+                dontUpdate = false;
             }
         }
 
         private void MediaElement_CurrentStateChanged(object sender, RoutedEventArgs e)
         {
+
             switch (mediaElement.CurrentState)
             {
                 case MediaElementState.Playing:
@@ -376,10 +434,12 @@ namespace Music
                 case MediaElementState.Paused:
                     controls.PlaybackStatus = MediaPlaybackStatus.Paused;
                     PlayButton.Source = PlayImage.Source;
-                    var position = mediaElement.Position.TotalSeconds;
-                    var duration = mediaElement.NaturalDuration.TimeSpan.TotalSeconds;
+                    double position = mediaElement.Position.TotalSeconds;
+                    double duration = mediaElement.NaturalDuration.TimeSpan.TotalSeconds;
                     if (Math.Abs(position - duration) < 1)
+                    {
                         manager.Next();
+                    }
                     break;
                 case MediaElementState.Stopped:
                     controls.PlaybackStatus = MediaPlaybackStatus.Stopped;
@@ -387,34 +447,44 @@ namespace Music
                 case MediaElementState.Closed:
                     controls.PlaybackStatus = MediaPlaybackStatus.Closed;
                     break;
+                default:
+                    break;
             }
         }
 
+
+
+        public bool seekDown = false;
         private void SeekBar_MouseUp(object sender, PointerRoutedEventArgs e)
         {
-            SeekDown = false;
-            var newTime = new TimeSpan(0, 0, (int) SeekBar.Value / 10);
+            seekDown = false;
+            TimeSpan newTime = new TimeSpan(0, 0, (int)SeekBar.Value / 10);
             mediaElement.Position = newTime;
-        }
 
+        }
         private void SeekBar_MouseDown(object sender, PointerRoutedEventArgs e)
         {
-            SeekDown = true;
+            seekDown = true;
         }
-
         private void SeekBar_ValueChanged(object sender, RangeBaseValueChangedEventArgs e)
         {
-            if (!SeekDown) return;
-            var newTime = new TimeSpan(0, 0, (int) e.NewValue / 10);
-            mediaElement.Position = newTime;
+            if (seekDown)
+            {
+                TimeSpan newTime = new TimeSpan(0, 0, (int)e.NewValue / 10);
+                mediaElement.Position = newTime;
+            }
         }
 
         private void PlayButton_Tapped(object sender, TappedRoutedEventArgs e)
         {
             if (mediaElement.CurrentState == MediaElementState.Paused)
+            {
                 manager.Play();
+            }
             else
+            {
                 manager.Pause();
+            }
         }
 
         private void NextButton_PointerEntered(object sender, PointerRoutedEventArgs e)
@@ -508,25 +578,32 @@ namespace Music
 
         private void VolumeSlider_ValueChanged(object sender, RangeBaseValueChangedEventArgs e)
         {
-            manager?.SetVolume((int) e.NewValue);
+            if (manager != null)
+            {
+                manager.SetVolume((int)e.NewValue);
+            }
         }
 
         private void BackgroundPanel_DoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
         {
-            var view = ApplicationView.GetForCurrentView();
+            ApplicationView view = ApplicationView.GetForCurrentView();
             if (view.IsFullScreenMode)
+            {
                 view.ExitFullScreenMode();
+            }
             else
-                view.TryEnterFullScreenMode();
+            {
+                bool succeeded = view.TryEnterFullScreenMode();
+            }
             ToggleControls();
         }
 
 
         private void VolumeSlider_PointerWheelChanged(object sender, PointerRoutedEventArgs e)
         {
-            var properties = e.GetCurrentPoint((Slider) sender);
-            var delta = properties.Properties.MouseWheelDelta;
-            manager.SetVolume((int) (mediaElement.Volume * 100) + delta / 40, true);
+            Windows.UI.Input.PointerPoint properties = e.GetCurrentPoint((Slider)sender);
+            int delta = properties.Properties.MouseWheelDelta;
+            manager.SetVolume((int)(mediaElement.Volume * 100) + delta / 40, true);
         }
 
 
@@ -536,9 +613,13 @@ namespace Music
             {
                 case VirtualKey.Space:
                     if (mediaElement.CurrentState == MediaElementState.Playing)
+                    {
                         manager.Pause();
+                    }
                     else
+                    {
                         manager.Play();
+                    }
                     break;
                 case VirtualKey.Right:
                     manager.Next();
@@ -547,20 +628,25 @@ namespace Music
                     manager.Previous();
                     break;
                 case VirtualKey.Up:
-                    manager.SetVolume((int) (mediaElement.Volume * 100) + 15, true);
+                    manager.SetVolume((int)(mediaElement.Volume * 100) + 15, true);
                     break;
                 case VirtualKey.Down:
-                    manager.SetVolume((int) (mediaElement.Volume * 100) - 15, true);
+                    manager.SetVolume((int)(mediaElement.Volume * 100) - 15, true);
                     break;
                 case VirtualKey.Insert:
                     ToggleControls();
+                    break;
+                default:
                     break;
             }
         }
 
         private void SortSelect_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            manager?.SortSongs(SortSelect.SelectedIndex);
+            if (manager != null)
+            {
+                manager.SortSongs(SortSelect.SelectedIndex);
+            }
         }
     }
 }
