@@ -41,7 +41,7 @@ namespace Music
         private string ParseTitle(string title)
         {
             string newTitle = title.Substring(0, title.Length - title.Split('.').Last().Length - 1);
-                //.mp3 etc er af gehaald
+            //.mp3 etc er af gehaald
 
             newTitle = new Regex(@"\[([^]]+)\]").Replace(newTitle, "");
             newTitle = new Regex(@"\(([^]]+)\)").Replace(newTitle, "");
@@ -129,7 +129,8 @@ namespace Music
         private readonly SystemMediaTransportControlsDisplayUpdater updater;
 
 
-        public MusicManager(List<Song> allSongs, MainPage mp, List<string> musicFolders, List<Playlist> playlists = null,
+        public MusicManager(List<Song> allSongs, MainPage mp, List<string> musicFolders,
+            List<Playlist> playlists = null,
             int currentList = 0, string sort = "date", bool ascending = false, int songIndex = 0, long startTime = 0,
             bool shuffle = false, bool repeat = true, int volume = 100)
         {
@@ -560,10 +561,8 @@ namespace Music
 
         public static void Shuffle<T>(this IList<T> list)
         {
-            int n = list.Count;
-            while (n > 1)
+            for (int n = list.Count - 1; n > 0; n--)
             {
-                n--;
                 int k = rng.Next(n + 1);
                 T value = list[k];
                 list[k] = list[n];
